@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bruin Catch (No Leaderboard)</title> <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <title>Bruin Catch (Leaderboard Load Fix)</title> <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
-        /* CSS Styles remain the same, minus leaderboard-specific styles */
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #ADD8E6; font-family: 'Press Start 2P', cursive; }
         body { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; min-height: 100vh; padding: 1rem; box-sizing: border-box; touch-action: none; transition: background-color 1s ease; }
         .intro-text { font-size: 0.9em; color: #333; margin-bottom: 1rem; text-align: center; flex-shrink: 0; width: 100%; }
@@ -14,7 +13,16 @@
         canvas { display: block; width: 100%; height: 100%; visibility: hidden; background-color: transparent; }
         /* Name Input Overlay */
         #name-input-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255, 255, 255, 0.95); z-index: 30; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; color: #2774AE; }
-         /* REMOVED Leaderboard Display Styles */
+         /* Leaderboard Display */
+         #leaderboard-display { margin-top: 15px; font-size: 0.7em; text-align: left; width: 80%; max-width: 300px; border: 1px solid #ccc; padding: 10px; background-color: #f0f0f0; border-radius: 5px; }
+         #leaderboard-display h3 { margin: 0 0 5px 0; text-align: center; font-size: 1.1em; }
+         #leaderboard-list { list-style: none; padding: 0; margin: 0; }
+         #leaderboard-list li { margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+         #leaderboard-list li span { display: inline-block; }
+         #leaderboard-list .rank { width: 20px; text-align: right; margin-right: 5px;}
+         #leaderboard-list .name { width: calc(50% - 25px); margin-right: 5px; overflow: hidden; text-overflow: ellipsis;}
+         #leaderboard-list .score { width: calc(30% - 5px); text-align: right; margin-right: 5px;}
+         #leaderboard-list .level { width: 20%; text-align: right; }
         #name-input-overlay h2 { font-size: 1.3em; margin-bottom: 15px; }
         #name-input-overlay p { font-size: 0.8em; line-height: 1.4; margin-bottom: 20px; max-width: 90%; }
         #player-name-input { font-family: 'Press Start 2P', cursive; font-size: 1em; padding: 10px; margin-bottom: 20px; border: 2px solid #2774AE; border-radius: 5px; text-align: center; width: 80%; max-width: 250px; }
@@ -24,9 +32,9 @@
         .ui-overlay { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; justify-content: space-between; align-items: flex-start; color: #ffffff; font-size: 1em; z-index: 10; pointer-events: none; visibility: hidden; }
         .ui-left, .ui-center, .ui-right { display: flex; flex-direction: column; gap: 5px; }
         .ui-left { align-items: flex-start; } .ui-center { align-items: center; } .ui-right { align-items: flex-end; }
-        .score, .lives, .level, .high-score-display, /* Removed high-level-display class */ .player-name-display, .combo-display, .bonus-display { background-color: rgba(39, 116, 174, 0.7); padding: 5px 10px; border-radius: 5px; white-space: nowrap; }
+        .score, .lives, .level, .high-score-display, .high-level-display, .player-name-display, .combo-display, .bonus-display { background-color: rgba(39, 116, 174, 0.7); padding: 5px 10px; border-radius: 5px; white-space: nowrap; }
         .level { font-size: 0.9em; }
-        .high-score-display { font-size: 0.8em; background-color: rgba(0, 0, 0, 0.5); } /* Keep high score display */
+        .high-score-display, .high-level-display { font-size: 0.8em; background-color: rgba(0, 0, 0, 0.5); }
         .player-name-display { position: absolute; bottom: 10px; left: 10px; font-size: 0.8em; background-color: rgba(0, 0, 0, 0.5); z-index: 10; }
         .combo-display { position: absolute; bottom: 10px; right: 10px; font-size: 1.1em; color: #FFD700; text-shadow: 1px 1px 2px rgba(0,0,0,0.7); z-index: 10; display: none; }
          .bonus-display { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); font-size: 1.2em; color: #ff4500; background-color: rgba(255, 255, 0, 0.8); z-index: 15; display: none; padding: 5px 15px; animation: pulseBonus 1s infinite alternate; }
@@ -34,12 +42,12 @@
         .message { /* Game Over Message */ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #2774AE; font-size: 1.2em; text-align: center; display: none; background-color: rgba(255, 255, 255, 0.9); padding: 20px; border-radius: 10px; border: 3px solid #2774AE; z-index: 20; line-height: 1.5; max-width: 80%; box-shadow: 0 0 15px rgba(0,0,0,0.2); cursor: pointer; }
         .level-up-message { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); color: #FFD700; font-size: 1.8em; text-align: center; display: none; z-index: 25; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); animation: fadeOutLevelUp 1.5s forwards; }
         @keyframes fadeOutLevelUp { 0% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); } }
+        /* Item Notification Style */
         #item-notification { position: absolute; top: 60%; left: 50%; transform: translateX(-50%); font-size: 1.3em; color: white; padding: 8px 15px; border-radius: 8px; background-color: rgba(0, 0, 0, 0.6); z-index: 22; display: none; text-align: center; text-shadow: 1px 1px 2px black; animation: fadeOutNotification 1.5s forwards; }
         @keyframes fadeOutNotification { 0% { opacity: 1; transform: translateX(-50%) translateY(0); } 80% { opacity: 1; transform: translateX(-50%) translateY(0); } 100% { opacity: 0; transform: translateX(-50%) translateY(-20px); } }
         /* Responsive */
-         @media (max-width: 600px) { .intro-text { font-size: 0.8em; } .ui-overlay { font-size: 0.9em; top: 8px; left: 8px; right: 8px; } .score, .lives, .level, .high-score-display, .player-name-display, .combo-display, .bonus-display { padding: 4px 8px; } .combo-display { font-size: 1em; bottom: 8px; right: 8px;} .bonus-display { font-size: 1em; top: 45px; } .message { font-size: 1em; padding: 15px; } .level-up-message { font-size: 1.5em; } #name-input-overlay h2 { font-size: 1.1em; } #name-input-overlay p { font-size: 0.7em; } #player-name-input { font-size: 0.9em; } #start-game-button { font-size: 0.9em; } .player-name-display { font-size: 0.7em; bottom: 8px; left: 8px;} /* Removed leaderboard display style */ #item-notification { font-size: 1.1em; } }
-         @media (max-width: 450px) { .intro-text { font-size: 0.7em; } .ui-overlay { font-size: 0.8em; } .level { font-size: 0.7em; } .high-score-display { font-size: 0.65em; padding: 3px 6px;} .combo-display { font-size: 0.9em; } .bonus-display { font-size: 0.9em; } .message { font-size: 0.9em; padding: 10px; } .level-up-message { font-size: 1.2em; } .player-name-display { font-size: 0.65em; } /* Removed leaderboard display style */ #item-notification { font-size: 1em; } }
-         @media (max-width: 380px) { .high-score-display { display: none; } }
+         @media (max-width: 600px) { .intro-text { font-size: 0.8em; } .ui-overlay { font-size: 0.9em; top: 8px; left: 8px; right: 8px; } .score, .lives, .level, .high-score-display, .high-level-display, .player-name-display, .combo-display, .bonus-display { padding: 4px 8px; } .combo-display { font-size: 1em; bottom: 8px; right: 8px;} .bonus-display { font-size: 1em; top: 45px; } .message { font-size: 1em; padding: 15px; } .level-up-message { font-size: 1.5em; } #name-input-overlay h2 { font-size: 1.1em; } #name-input-overlay p { font-size: 0.7em; } #player-name-input { font-size: 0.9em; } #start-game-button { font-size: 0.9em; } .player-name-display { font-size: 0.7em; bottom: 8px; left: 8px;} #leaderboard-display { font-size: 0.6em; } #item-notification { font-size: 1.1em; } }
+         @media (max-width: 450px) { .intro-text { font-size: 0.7em; } .ui-overlay { font-size: 0.8em; } .level { font-size: 0.7em; } .high-score-display, .high-level-display { font-size: 0.65em; padding: 3px 6px;} .combo-display { font-size: 0.9em; } .bonus-display { font-size: 0.9em; } .message { font-size: 0.9em; padding: 10px; } .level-up-message { font-size: 1.2em; } .player-name-display { font-size: 0.65em; } #leaderboard-display { display: none; } #item-notification { font-size: 1em; } }
     </style>
 </head>
 <body>
@@ -50,15 +58,21 @@
             <p>Move 🐻 (Arrows/Drag) to catch falling items and avoid those with red sparkles. Reach the highest level!</p>
             <input type="text" id="player-name-input" placeholder="Bruin" maxlength="15">
             <button id="start-game-button">Start Game</button>
+            <div id="leaderboard-display">
+                <h3>Leaderboard</h3>
+                <ol id="leaderboard-list"><li>Loading...</li></ol>
             </div>
+        </div>
         <canvas id="gameCanvas"></canvas>
         <div class="ui-overlay">
             <div class="ui-left">
                 <div id="score" class="score">Score: 0</div>
-                <div id="high-score" class="high-score-display">Hi: 0</div> </div>
+                <div id="high-score" class="high-score-display">Hi: 0 (Bruin)</div>
+            </div>
             <div class="ui-center">
                  <div id="level" class="level">Level: 1</div>
-                 </div>
+                 <div id="high-level" class="high-level-display">Hi Lvl: 1</div>
+            </div>
             <div class="ui-right">
                 <div id="lives" class="lives">Lives: 3</div>
             </div>
@@ -73,12 +87,30 @@
 
     <script>
         // --- Setup ---
-        let canvas, ctx, gameContainer, scoreElement, livesElement, levelElement, highScoreElement, /* highLevelElement removed */ messageElement, levelUpMessageElement, nameInputOverlay, playerNameInput, startGameButton, uiOverlay, playerNameDisplayElement, /* leaderboardListElement removed */ comboDisplayElement, bonusDisplayElement, itemNotificationElement;
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameContainer = document.getElementById('gameContainer');
+        const scoreElement = document.getElementById('score');
+        const livesElement = document.getElementById('lives');
+        const levelElement = document.getElementById('level');
+        const highScoreElement = document.getElementById('high-score');
+        const highLevelElement = document.getElementById('high-level');
+        const messageElement = document.getElementById('message');
+        const levelUpMessageElement = document.getElementById('levelUpMessage');
+        const nameInputOverlay = document.getElementById('name-input-overlay');
+        const playerNameInput = document.getElementById('player-name-input');
+        const startGameButton = document.getElementById('start-game-button');
+        const uiOverlay = document.querySelector('.ui-overlay');
+        const playerNameDisplayElement = document.getElementById('player-name-display');
+        const leaderboardListElement = document.getElementById('leaderboard-list');
+        const comboDisplayElement = document.getElementById('combo-display');
+        const bonusDisplayElement = document.getElementById('bonus-display');
+        const itemNotificationElement = document.getElementById('item-notification');
 
         // --- Game Variables ---
         let player; let playerName = "Bruin";
         let items = []; let particles = [];
-        let score = 0; let highScore = 0; // Keep single high score
+        let score = 0; let leaderboard = [];
         let lives = 3; let level = 1;
         let baseGameSpeed = 2; let gameSpeed = baseGameSpeed;
         let baseItemSpawnInterval = 95; let itemSpawnInterval = baseItemSpawnInterval;
@@ -123,7 +155,7 @@
         const growParticleColor = '#32CD32'; const shrinkParticleColor = '#8A2BE2';
 
         // --- Local Storage Key ---
-        const HIGHSCORE_KEY = 'bruinCatchHighScore_v3'; // Use a new key for simple high score
+        const LEADERBOARD_KEY = 'bruinCatchLeaderboard_v2';
 
         // --- Theme Colors ---
         let themeColors = { sky1: '#87CEEB', sky2: '#ADD8E6', ground1: '#8B4513', ground2: '#A0522D', bodyBg: '#e0f2fe' };
@@ -135,20 +167,81 @@
         // --- Tone.js Setup ---
         let jumpSynth, collectSynth, hurtSynth, levelUpSynth, bonusSynth, powerupSynth;
         let soundsEnabled = false;
-        function initAudio() { /* ... No changes needed ... */ if (soundsEnabled || typeof Tone === 'undefined') return; if (Tone.context.state !== 'running') { Tone.start().then(() => { if (soundsEnabled) return; jumpSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 } }).toDestination(); collectSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.2 } }).toDestination(); hurtSynth = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.1 } }).toDestination(); levelUpSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.05, decay: 0.3, sustain: 0.1, release: 0.3 } }).toDestination(); bonusSynth = new Tone.Synth({ oscillator: { type: 'pulse', width: 0.4 }, envelope: { attack: 0.1, decay: 0.4, sustain: 0.2, release: 0.5 } }).toDestination(); powerupSynth = new Tone.Synth({ oscillator: { type: 'sine' }, volume: -6, envelope: { attack: 0.02, decay: 0.1, sustain: 0.2, release: 0.2 } }).toDestination(); soundsEnabled = true; console.log("Audio Initialized"); }).catch(e => { console.error("Audio init failed:", e); soundsEnabled = false; if (isGameOver && messageElement) { messageElement.innerHTML = "Audio failed. Tap to retry."; messageElement.style.display = 'block'; } }); } else if (!soundsEnabled) { jumpSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 } }).toDestination(); collectSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.2 } }).toDestination(); hurtSynth = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.1 } }).toDestination(); levelUpSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.05, decay: 0.3, sustain: 0.1, release: 0.3 } }).toDestination(); bonusSynth = new Tone.Synth({ oscillator: { type: 'pulse', width: 0.4 }, envelope: { attack: 0.1, decay: 0.4, sustain: 0.2, release: 0.5 } }).toDestination(); powerupSynth = new Tone.Synth({ oscillator: { type: 'sine' }, volume: -6, envelope: { attack: 0.02, decay: 0.1, sustain: 0.2, release: 0.2 } }).toDestination(); soundsEnabled = true; console.log("Audio Initialized (Context running)"); } }
+        function initAudio() { /* ... No changes needed ... */ if (soundsEnabled || typeof Tone === 'undefined') return; if (Tone.context.state !== 'running') { Tone.start().then(() => { if (soundsEnabled) return; jumpSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 } }).toDestination(); collectSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.2 } }).toDestination(); hurtSynth = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.1 } }).toDestination(); levelUpSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.05, decay: 0.3, sustain: 0.1, release: 0.3 } }).toDestination(); bonusSynth = new Tone.Synth({ oscillator: { type: 'pulse', width: 0.4 }, envelope: { attack: 0.1, decay: 0.4, sustain: 0.2, release: 0.5 } }).toDestination(); powerupSynth = new Tone.Synth({ oscillator: { type: 'sine' }, volume: -6, envelope: { attack: 0.02, decay: 0.1, sustain: 0.2, release: 0.2 } }).toDestination(); soundsEnabled = true; console.log("Audio Initialized"); }).catch(e => { console.error("Audio init failed:", e); soundsEnabled = false; if (isGameOver) { messageElement.innerHTML = "Audio failed. Tap to retry."; messageElement.style.display = 'block'; } }); } else if (!soundsEnabled) { jumpSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 } }).toDestination(); collectSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.2 } }).toDestination(); hurtSynth = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.1 } }).toDestination(); levelUpSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.05, decay: 0.3, sustain: 0.1, release: 0.3 } }).toDestination(); bonusSynth = new Tone.Synth({ oscillator: { type: 'pulse', width: 0.4 }, envelope: { attack: 0.1, decay: 0.4, sustain: 0.2, release: 0.5 } }).toDestination(); powerupSynth = new Tone.Synth({ oscillator: { type: 'sine' }, volume: -6, envelope: { attack: 0.02, decay: 0.1, sustain: 0.2, release: 0.2 } }).toDestination(); soundsEnabled = true; console.log("Audio Initialized (Context running)"); } }
         function playSound(type, note = 'C4', duration = '8n') { /* ... No changes needed ... */ if (!soundsEnabled) return; try { const now = Tone.now(); if (type === 'good' && collectSynth) collectSynth.triggerAttackRelease('C5', '16n', now); else if (type === 'golden' && collectSynth) collectSynth.triggerAttackRelease('E5', '16n', now + 0.01); else if (type === 'superRare' && collectSynth) collectSynth.triggerAttackRelease('G5', '8n', now + 0.02); else if (type === 'bad' && hurtSynth) hurtSynth.triggerAttackRelease('C3', '8n', now); else if (type === 'miss' && hurtSynth) hurtSynth.triggerAttackRelease('A2', '16n', now); else if (type === 'life' && powerupSynth) powerupSynth.triggerAttackRelease('A4', '8n', now); else if (type === 'grow' && powerupSynth) powerupSynth.triggerAttackRelease('E4', '8n', now); else if (type === 'shrink' && powerupSynth) powerupSynth.triggerAttackRelease('C4', '8n', now); else if (type === 'levelUp' && levelUpSynth) levelUpSynth.triggerAttackRelease('G4', '4n', now); else if (type === 'bonusStart' && bonusSynth) bonusSynth.triggerAttackRelease('C5', '2n', now); else if (type === 'gameOver' && hurtSynth) hurtSynth.triggerAttackRelease('F2', '1n', now); } catch (e) { console.error("Sound playback error:", e); } }
 
-        // --- High Score Handling (Simplified) ---
-        function loadHighScore() { /* ... Added try/catch ... */ try { highScore = parseInt(localStorage.getItem(HIGHSCORE_KEY) || '0'); } catch (e) { console.error("LS Error (Load HS):", e); highScore = 0; } finally { updateTopScoreDisplay(); } }
-        function saveHighScore() { /* ... Added try/catch ... */ try { if (score > highScore) { highScore = score; localStorage.setItem(HIGHSCORE_KEY, highScore.toString()); } } catch (e) { console.error("LS Error (Save HS):", e); } finally { updateTopScoreDisplay(); } }
-        function updateTopScoreDisplay() { /* ... Added element check ... */ if(highScoreElement) { highScoreElement.textContent = `Hi: ${highScore}`; } else { console.log("High score element not ready for update."); } /* Removed high level display */ }
+        // --- Leaderboard Handling ---
+        function loadLeaderboard() {
+            // Added try...catch for safety
+            try {
+                const storedData = localStorage.getItem(LEADERBOARD_KEY);
+                leaderboard = storedData ? JSON.parse(storedData) : [];
+                if (!Array.isArray(leaderboard)) leaderboard = [];
+                leaderboard.sort((a, b) => b.score - a.score || b.level - a.level);
+            } catch (e) {
+                console.error("LS Error (Load Leaderboard):", e);
+                leaderboard = []; // Reset on error
+            } finally {
+                 // Always update display even if loading failed (shows defaults)
+                 displayLeaderboard();
+                 updateTopScoreDisplay();
+            }
+        }
+        function saveToLeaderboard() {
+             // Added try...catch for safety
+             try {
+                const currentEntry = { name: playerName, score: score, level: level };
+                let playerIndex = leaderboard.findIndex(entry => entry.name === playerName);
+                if (playerIndex !== -1) { if (score > leaderboard[playerIndex].score || (score === leaderboard[playerIndex].score && level > leaderboard[playerIndex].level)) { leaderboard[playerIndex] = currentEntry; } else { return; } }
+                else { leaderboard.push(currentEntry); }
+                leaderboard.sort((a, b) => b.score - a.score || b.level - a.level);
+                leaderboard = leaderboard.slice(0, 5);
+                localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
+            } catch (e) { console.error("LS Error (Save Leaderboard):", e); }
+            finally {
+                 // Always update display after attempting save
+                 displayLeaderboard();
+                 updateTopScoreDisplay();
+            }
+        }
+        function displayLeaderboard() {
+             // Added check for element existence
+             if (!leaderboardListElement) return;
+             leaderboardListElement.innerHTML = '';
+             if (leaderboard.length === 0) { leaderboardListElement.innerHTML = '<li>No scores yet!</li>'; return; }
+             leaderboard.forEach((entry, index) => { const li = document.createElement('li'); const safeName = entry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;"); li.innerHTML = `<span class="rank">${index + 1}.</span><span class="name">${safeName}</span><span class="score">${entry.score}</span><span class="level">(L${entry.level})</span>`; leaderboardListElement.appendChild(li); });
+         }
+        function updateTopScoreDisplay() {
+             // Added checks for element existence
+             if (leaderboard.length > 0) {
+                 const topEntry = leaderboard[0];
+                 const safeName = topEntry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                 if(highScoreElement) highScoreElement.textContent = `Hi: ${topEntry.score} (${safeName})`;
+                 if(highLevelElement) highLevelElement.textContent = `Hi Lvl: ${topEntry.level}`;
+             } else {
+                 if(highScoreElement) highScoreElement.textContent = `Hi: 0 (Bruin)`;
+                 if(highLevelElement) highLevelElement.textContent = `Hi Lvl: 1`;
+             }
+        }
 
         // --- Resize Canvas ---
-        function resizeCanvas() { /* ... No changes needed ... */ if (!canvas || !gameContainer) return; canvas.width = gameContainer.clientWidth; canvas.height = gameContainer.clientHeight; groundY = canvas.height - groundHeight - basePlayerHeight; if (player) { player.y = canvas.height - player.currentHeight - 10; player.x = Math.max(0, Math.min(canvas.width - player.currentWidth, player.x)); } if (!isGameOver) { drawGame(); } }
+        function resizeCanvas() {
+            canvas.width = gameContainer.clientWidth; canvas.height = gameContainer.clientHeight;
+            // Calculate groundY *after* getting canvas dimensions
+            groundY = canvas.height - groundHeight - basePlayerHeight;
+            if (player) {
+                 player.y = canvas.height - player.currentHeight - 10;
+                 player.x = Math.max(0, Math.min(canvas.width - player.currentWidth, player.x));
+            }
+            // Draw immediately only if game is running
+            if (!isGameOver) {
+                drawGame();
+            }
+        }
 
         // --- Particle System ---
         function createParticle(x, y, count = 8, color = goodParticleColor, speed = 3, type = 'burst') { /* ... No changes ... */ for (let i = 0; i < count; i++) { let vx, vy; if (type === 'burst') { vx = (Math.random() - 0.5) * speed * 1.5; vy = (Math.random() - 0.5) * speed * 1.5; } else if (type === 'upward') { vx = (Math.random() - 0.5) * speed * 0.8; vy = (Math.random() * -speed) - 1; } else if (type === 'radiate') { const angle = Math.random() * Math.PI * 2; const currentSpeed = Math.random() * speed * 0.5 + 0.2; vx = Math.cos(angle) * currentSpeed; vy = Math.sin(angle) * currentSpeed; } else { vx = (Math.random() - 0.5) * speed * 1.5; vy = (Math.random() * -speed) - 1; } particles.push({ x: x, y: y, vx: vx, vy: vy, life: particleLifespan + Math.random() * 20, size: Math.random() * 4 + 2, color: color, alpha: 1.0 }); } }
-        function handleParticles() { /* ... No changes needed ... */ for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.life--; p.alpha = Math.max(0, p.life / particleLifespan); if (p.life <= 0) { particles.splice(i, 1); } else { ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color; ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size); ctx.globalAlpha = 1.0; } } }
+        function handleParticles() { /* ... No changes ... */ for (let i = particles.length - 1; i >= 0; i--) { const p = particles[i]; p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.life--; p.alpha = Math.max(0, p.life / particleLifespan); if (p.life <= 0) { particles.splice(i, 1); } else { ctx.globalAlpha = p.alpha; ctx.fillStyle = p.color; ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size); ctx.globalAlpha = 1.0; } } }
 
         // --- Object Creation ---
         function createPlayer() { /* ... No changes needed ... */ playerWidth = basePlayerWidth; playerHeight = basePlayerHeight; return { x: canvas.width / 2 - playerWidth / 2, y: canvas.height - playerHeight - 10, baseWidth: basePlayerWidth, baseHeight: basePlayerHeight, currentWidth: playerWidth, currentHeight: playerHeight, emoji: playerEmoji, dx: 0, animFrame: 0, update: function() { let moved = false; if (this.dx !== 0) { this.x += this.dx; moved = true; this.animFrame = (this.animFrame + 1) % (playerAnimSpeed * 2); } else { this.animFrame = 0; } if (this.x < 0) this.x = 0; if (this.x > canvas.width - this.currentWidth) this.x = canvas.width - this.currentWidth; if (isPlayerBig) { playerBigTimer--; if (playerBigTimer <= 0) this.setSize('normal'); } if (isPlayerSmall) { playerSmallTimer--; if (playerSmallTimer <= 0) this.setSize('normal'); } }, draw: function() { ctx.save(); const scaleFactor = (this.dx !== 0 && this.animFrame < playerAnimSpeed) ? 1.05 : 1.0; ctx.translate(this.x + this.currentWidth / 2, this.y + this.currentHeight / 2); ctx.scale(scaleFactor, scaleFactor); ctx.font = `${this.currentHeight}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.emoji, 0, 0); ctx.restore(); }, setSize: function(sizeType) { isPlayerBig = false; isPlayerSmall = false; playerBigTimer = 0; playerSmallTimer = 0; if (sizeType === 'big') { this.currentWidth = this.baseWidth * 1.5; this.currentHeight = this.baseHeight * 1.5; isPlayerBig = true; playerBigTimer = playerBigDuration; } else if (sizeType === 'small') { this.currentWidth = this.baseWidth * 0.6; this.currentHeight = this.baseHeight * 0.6; isPlayerSmall = true; playerSmallTimer = playerSmallDuration; } else { this.currentWidth = this.baseWidth; this.currentHeight = this.baseHeight; } this.y = canvas.height - this.currentHeight - 10; this.x = Math.max(0, Math.min(canvas.width - this.currentWidth, this.x)); playerWidth = this.currentWidth; playerHeight = this.currentHeight; }, moveLeft: function() { this.dx = -playerSpeed; }, moveRight: function() { this.dx = playerSpeed; }, stop: function() { this.dx = 0; this.animFrame = 0; } }; }
@@ -162,19 +255,113 @@
         function showItemNotification(text) { /* ... No changes needed ... */ if (!itemNotificationElement) return; itemNotificationElement.textContent = text; itemNotificationElement.style.display = 'block'; clearTimeout(notificationTimeoutId); notificationTimeoutId = setTimeout(() => { itemNotificationElement.style.display = 'none'; }, 1500); itemNotificationElement.style.animation = 'none'; itemNotificationElement.offsetHeight; itemNotificationElement.style.animation = ''; }
 
         // --- Drawing ---
-        function drawBackground() { /* ... No changes needed ... */ if (!themeColors || !ctx || !canvas) return; const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.7); skyGradient.addColorStop(0, themeColors.sky1 || '#87CEEB'); skyGradient.addColorStop(1, themeColors.sky2 || '#ADD8E6'); ctx.fillStyle = skyGradient; ctx.fillRect(0, 0, canvas.width, canvas.height); if (typeof groundHeight !== 'undefined' && groundHeight > 0 && canvas.height > groundHeight) { const groundGradient = ctx.createLinearGradient(0, canvas.height - groundHeight, 0, canvas.height); groundGradient.addColorStop(0, themeColors.ground1 || '#8B4513'); groundGradient.addColorStop(1, themeColors.ground2 || '#A0522D'); ctx.fillStyle = groundGradient; ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight); } }
-        function drawGame() { /* ... No changes needed ... */ if (canvas.style.visibility !== 'visible' || !ctx) { return; } ctx.clearRect(0, 0, canvas.width, canvas.height); drawBackground(); items.forEach(item => item.draw()); if (player) player.draw(); handleParticles(); messageElement.style.display = isGameOver && canvas.style.visibility === 'visible' ? 'block' : 'none'; }
+        // *** drawBackground function definition ***
+        function drawBackground() {
+             if (!themeColors || !ctx || !canvas) return; // Safety checks
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.7);
+            skyGradient.addColorStop(0, themeColors.sky1 || '#87CEEB');
+            skyGradient.addColorStop(1, themeColors.sky2 || '#ADD8E6');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (typeof groundHeight !== 'undefined' && groundHeight > 0 && canvas.height > groundHeight) {
+                const groundGradient = ctx.createLinearGradient(0, canvas.height - groundHeight, 0, canvas.height);
+                groundGradient.addColorStop(0, themeColors.ground1 || '#8B4513');
+                groundGradient.addColorStop(1, themeColors.ground2 || '#A0522D');
+                ctx.fillStyle = groundGradient;
+                ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+            }
+        }
+        function drawGame() {
+            if (canvas.style.visibility !== 'visible' || !ctx) { return; }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground(); // Draw background
+            items.forEach(item => item.draw()); // Draw items
+            if (player) player.draw(); // Draw player
+            handleParticles(); // Draw particles
+            // Message display is handled by gameOver and showNameInputScreen
+        }
+
 
         // --- Game Loop & State Management ---
-        function gameLoop() { /* ... No changes needed ... */ if (isGameOver) { cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } if (player) player.update(); handleItems(); if (isGameOver) return; handleParticles(); updateBonusRound(); passiveScoreTimer++; if (passiveScoreTimer >= passiveScoreInterval) { passiveScoreTimer = 0; let passiveScoreToAdd = 0; if (isPlayerSmall) { passiveScoreToAdd = smallPassiveScore; } else if (isPlayerBig) { passiveScoreToAdd = bigPassiveScore; } if (passiveScoreToAdd > 0) { score += passiveScoreToAdd; score = Math.max(0, score); scoreElement.textContent = `Score: ${score}`; checkLevelUp(); } } drawGame(); animationFrameId = requestAnimationFrame(gameLoop); }
+        function gameLoop() {
+            // ** FIXED: Check game over at the START **
+            if (isGameOver) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+                return;
+            }
 
-        function gameOver() { /* ... No changes needed ... */ if (isGameOver) return; isGameOver = true; console.log("Game Over Triggered"); cancelAnimationFrame(animationFrameId); animationFrameId = null; saveHighScore(); messageElement.innerHTML = `Game Over!<br>Level: ${level} | Score: ${score}<br>Tap or Click to Play Again`; messageElement.style.display = 'block'; gameContainer.style.cursor = 'pointer'; playSound('gameOver'); }
-        function showNameInputScreen() { /* ... No changes needed ... */ isGameOver = true; cancelAnimationFrame(animationFrameId); animationFrameId = null; nameInputOverlay.style.display = 'flex'; canvas.style.visibility = 'hidden'; uiOverlay.style.visibility = 'hidden'; messageElement.style.display = 'none'; levelUpMessageElement.style.display = 'none'; loadHighScore(); playerNameInput.value = playerName; try { playerNameInput.focus(); } catch(e) {} }
+            // Update game state
+            if (player) player.update();
+            handleItems(); // Includes collision checks which might set isGameOver
+            // ** FIXED: Check game over AGAIN after item handling **
+            if (isGameOver) {
+                 cancelAnimationFrame(animationFrameId);
+                 animationFrameId = null;
+                 return;
+            }
+            handleParticles();
+            updateBonusRound();
 
-        function initializeGame() { /* ... No changes needed ... */
-            if (!isGameOver) { console.log("InitializeGame called but game not over. Ignoring."); return; }
-            console.log("Initializing Game..."); initAudio();
-            isGameOver = false;
+            // Passive score for size changes
+            passiveScoreTimer++;
+            if (passiveScoreTimer >= passiveScoreInterval) {
+                passiveScoreTimer = 0;
+                let passiveScoreToAdd = 0;
+                if (isPlayerSmall) { passiveScoreToAdd = smallPassiveScore; }
+                else if (isPlayerBig) { passiveScoreToAdd = bigPassiveScore; }
+                if (passiveScoreToAdd > 0) {
+                     score += passiveScoreToAdd; score = Math.max(0, score);
+                     scoreElement.textContent = `Score: ${score}`; checkLevelUp();
+                }
+            }
+
+            // Draw game state
+            drawGame();
+
+            // Request next frame ONLY if game is still running
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+
+        function gameOver() {
+            if (isGameOver) return;
+            isGameOver = true;
+            console.log("Game Over Triggered");
+            cancelAnimationFrame(animationFrameId); // STOP THE LOOP
+            animationFrameId = null;
+            saveToLeaderboard();
+            messageElement.innerHTML = `Game Over!<br>Level: ${level} | Score: ${score}<br>Tap or Click to Play Again`;
+            messageElement.style.display = 'block'; // Show game over message
+            gameContainer.style.cursor = 'pointer';
+            playSound('gameOver');
+        }
+        function showNameInputScreen() {
+             isGameOver = true;
+             cancelAnimationFrame(animationFrameId);
+             animationFrameId = null;
+             nameInputOverlay.style.display = 'flex';
+             canvas.style.visibility = 'hidden';
+             uiOverlay.style.visibility = 'hidden';
+             messageElement.style.display = 'none'; // Hide game over message
+             levelUpMessageElement.style.display = 'none';
+             loadLeaderboard();
+             playerNameInput.value = playerName;
+             try { playerNameInput.focus(); } catch(e) {}
+        }
+
+
+        function initializeGame() {
+            // ** FIXED: Ensure game isn't already running and reset crucial states **
+            if (!isGameOver) {
+                 console.log("InitializeGame called but game not over. Ignoring.");
+                 return;
+            }
+            console.log("Initializing Game...");
+            initAudio();
+
+            isGameOver = false; // Set game state to running *before* starting loop
             score = 0; lives = 3; level = 1;
             baseGameSpeed = 2; baseItemSpawnInterval = 95;
             gameSpeed = baseGameSpeed; itemSpawnInterval = baseItemSpawnInterval;
@@ -185,95 +372,58 @@
             isPlayerSmall = false; playerSmallTimer = 0;
             passiveScoreTimer = 0;
 
-            scoreElement.textContent = `Score: ${score}`; livesElement.textContent = `Lives: ${lives}`; levelElement.textContent = `Level: ${level}`;
-            playerNameDisplayElement.textContent = `Player: ${playerName}`; comboDisplayElement.style.display = 'none'; bonusDisplayElement.style.display = 'none';
+            // Update UI
+            scoreElement.textContent = `Score: ${score}`;
+            livesElement.textContent = `Lives: ${lives}`;
+            levelElement.textContent = `Level: ${level}`;
+            playerNameDisplayElement.textContent = `Player: ${playerName}`;
+            comboDisplayElement.style.display = 'none';
+            bonusDisplayElement.style.display = 'none';
             updateTopScoreDisplay();
 
-            messageElement.style.display = 'none'; levelUpMessageElement.style.display = 'none';
-            gameContainer.style.cursor = 'grab'; canvas.style.visibility = 'visible'; uiOverlay.style.visibility = 'visible';
+            messageElement.style.display = 'none';
+            levelUpMessageElement.style.display = 'none';
+            gameContainer.style.cursor = 'grab';
+            canvas.style.visibility = 'visible';
+            uiOverlay.style.visibility = 'visible';
 
-            if (typeof groundY === 'undefined' || canvas.height === 0) { resizeCanvas(); } // Ensure groundY is set
+            // Create or reset player
+            resizeCanvas(); // Call resize to set groundY before creating player
+            if (!player) { player = createPlayer(); }
+            else { player.x = canvas.width / 2 - basePlayerWidth / 2; player.dx = 0; player.setSize('normal'); }
 
-            if (!player) { player = createPlayer(); } else { player.x = canvas.width / 2 - basePlayerWidth / 2; player.dx = 0; player.setSize('normal'); }
-
-            cancelAnimationFrame(animationFrameId);
+            // Start the game loop
+            cancelAnimationFrame(animationFrameId); // Clear just in case
             animationFrameId = requestAnimationFrame(gameLoop);
             console.log("Game Loop Started with ID:", animationFrameId);
         }
 
-        // --- Event Listeners (Simplified Setup) ---
-        function setupEventListeners() {
-             // Start Game Button Listener
-             startGameButton.addEventListener('click', () => {
-                 console.log("Start Game button clicked!"); // Debug log
-                 playerName = playerNameInput.value.trim().substring(0, 15) || "Bruin";
-                 nameInputOverlay.style.display = 'none';
-                 initializeGame(); // Start the actual game
-             });
-
-             // Allow Enter key in input field to start game
-             playerNameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') { startGameButton.click(); } });
-
-             // Allow restarting (showing name input) by clicking game over message
-             messageElement.addEventListener('click', (e) => { e.stopPropagation(); if (isGameOver) { showNameInputScreen(); } });
-
-             // Keyboard Controls
-             window.addEventListener('keydown', (e) => { if (isGameOver && nameInputOverlay.style.display === 'flex' && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') && document.activeElement !== playerNameInput) { startGameButton.click(); return; } if (isGameOver) return; if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') { if (player) player.moveLeft(); } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') { if (player) player.moveRight(); } });
-             window.addEventListener('keyup', (e) => { if (isGameOver || !player) return; if (((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') && player.dx < 0) || ((e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') && player.dx > 0)) { player.stop(); } });
-             // Touch Controls (Drag)
-             gameContainer.addEventListener('touchstart', (e) => { e.preventDefault(); if (isGameOver) return; if (e.touches.length > 0 && player) { isDragging = true; touchStartX = e.touches[0].clientX; playerStartX = player.x; gameContainer.style.cursor = 'grabbing'; } }, { passive: false });
-             gameContainer.addEventListener('touchmove', (e) => { e.preventDefault(); if (!isDragging || isGameOver || !player) return; if (e.touches.length > 0) { const touchCurrentX = e.touches[0].clientX; const deltaX = touchCurrentX - touchStartX; let newPlayerX = playerStartX + deltaX; newPlayerX = Math.max(0, Math.min(canvas.width - player.currentWidth, newPlayerX)); player.x = newPlayerX; } }, { passive: false });
-             const stopTouchDragging = () => { if (isDragging) { isDragging = false; touchStartX = null; playerStartX = null; gameContainer.style.cursor = 'grab'; } };
-             gameContainer.addEventListener('touchend', stopTouchDragging);
-             gameContainer.addEventListener('touchcancel', stopTouchDragging);
-             // Mouse Controls (Click/Drag)
-             gameContainer.addEventListener('mousedown', (e) => { if (isGameOver) return; if (player) { isDragging = true; touchStartX = e.clientX; playerStartX = player.x; gameContainer.style.cursor = 'grabbing'; } });
-             gameContainer.addEventListener('mousemove', (e) => { if (!isDragging || isGameOver || !player) return; const touchCurrentX = e.clientX; const deltaX = touchCurrentX - touchStartX; let newPlayerX = playerStartX + deltaX; newPlayerX = Math.max(0, Math.min(canvas.width - player.currentWidth, newPlayerX)); player.x = newPlayerX; });
-             const stopMouseDragging = () => { if (isDragging) { isDragging = false; touchStartX = null; playerStartX = null; gameContainer.style.cursor = 'grab'; } };
-             window.addEventListener('mouseup', stopMouseDragging);
-             gameContainer.addEventListener('mouseleave', stopMouseDragging);
-             // Resize Listener
-             window.addEventListener('resize', resizeCanvas);
-        }
-
+        // --- Event Listeners ---
+        // Keyboard Controls
+        window.addEventListener('keydown', (e) => { if (isGameOver && nameInputOverlay.style.display === 'flex' && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') && document.activeElement !== playerNameInput) { startGameButton.click(); return; } if (isGameOver) return; if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') { if (player) player.moveLeft(); } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') { if (player) player.moveRight(); } });
+        window.addEventListener('keyup', (e) => { if (isGameOver || !player) return; if (((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') && player.dx < 0) || ((e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') && player.dx > 0)) { player.stop(); } });
+        // Touch Controls (Drag)
+        gameContainer.addEventListener('touchstart', (e) => { e.preventDefault(); if (isGameOver) return; if (e.touches.length > 0 && player) { isDragging = true; touchStartX = e.touches[0].clientX; playerStartX = player.x; gameContainer.style.cursor = 'grabbing'; } }, { passive: false });
+        gameContainer.addEventListener('touchmove', (e) => { e.preventDefault(); if (!isDragging || isGameOver || !player) return; if (e.touches.length > 0) { const touchCurrentX = e.touches[0].clientX; const deltaX = touchCurrentX - touchStartX; let newPlayerX = playerStartX + deltaX; newPlayerX = Math.max(0, Math.min(canvas.width - player.currentWidth, newPlayerX)); player.x = newPlayerX; } }, { passive: false });
+        const stopTouchDragging = () => { if (isDragging) { isDragging = false; touchStartX = null; playerStartX = null; gameContainer.style.cursor = 'grab'; } };
+        gameContainer.addEventListener('touchend', stopTouchDragging);
+        gameContainer.addEventListener('touchcancel', stopTouchDragging);
+        // Mouse Controls (Click/Drag)
+        gameContainer.addEventListener('mousedown', (e) => { if (isGameOver) return; if (player) { isDragging = true; touchStartX = e.clientX; playerStartX = player.x; gameContainer.style.cursor = 'grabbing'; } });
+        gameContainer.addEventListener('mousemove', (e) => { if (!isDragging || isGameOver || !player) return; const touchCurrentX = e.clientX; const deltaX = touchCurrentX - touchStartX; let newPlayerX = playerStartX + deltaX; newPlayerX = Math.max(0, Math.min(canvas.width - player.currentWidth, newPlayerX)); player.x = newPlayerX; });
+        const stopMouseDragging = () => { if (isDragging) { isDragging = false; touchStartX = null; playerStartX = null; gameContainer.style.cursor = 'grab'; } };
+        window.addEventListener('mouseup', stopMouseDragging);
+        gameContainer.addEventListener('mouseleave', stopMouseDragging);
+         // Start Game Button Listener
+         startGameButton.addEventListener('click', () => { playerName = playerNameInput.value.trim().substring(0, 15) || "Bruin"; nameInputOverlay.style.display = 'none'; initializeGame(); });
+         // Allow Enter key in input field to start game
+         playerNameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') { startGameButton.click(); } });
+         // Allow restarting (showing name input) by clicking game over message
+         messageElement.addEventListener('click', (e) => { e.stopPropagation(); if (isGameOver) { showNameInputScreen(); } });
 
         // --- Initial Setup ---
-        window.addEventListener('load', () => {
-            console.log("Window loaded. Setting up elements and listeners.");
-             // *** Select elements AFTER DOM is loaded ***
-             canvas = document.getElementById('gameCanvas');
-             if (!canvas) { console.error("Canvas element not found!"); return; }
-             ctx = canvas.getContext('2d');
-             if (!ctx) { console.error("Canvas context not available!"); return; }
-             gameContainer = document.getElementById('gameContainer');
-             scoreElement = document.getElementById('score');
-             livesElement = document.getElementById('lives');
-             levelElement = document.getElementById('level');
-             highScoreElement = document.getElementById('high-score');
-             highLevelElement = document.getElementById('high-level');
-             messageElement = document.getElementById('message');
-             levelUpMessageElement = document.getElementById('levelUpMessage');
-             nameInputOverlay = document.getElementById('name-input-overlay');
-             playerNameInput = document.getElementById('player-name-input');
-             startGameButton = document.getElementById('start-game-button');
-             uiOverlay = document.querySelector('.ui-overlay');
-             playerNameDisplayElement = document.getElementById('player-name-display');
-             leaderboardListElement = document.getElementById('leaderboard-list');
-             comboDisplayElement = document.getElementById('combo-display');
-             bonusDisplayElement = document.getElementById('bonus-display');
-             itemNotificationElement = document.getElementById('item-notification');
-
-             // ** Added check for essential elements **
-             if (!gameContainer || !nameInputOverlay || !playerNameInput || !startGameButton || !uiOverlay || !messageElement ) {
-                  console.error("One or more essential HTML elements are missing!");
-                  return;
-             }
-
-            loadHighScore(); // Load saved data first
-            resizeCanvas(); // Set initial size
-            showNameInputScreen(); // Show name input screen initially
-            setupEventListeners(); // ** Attach all listeners here **
-        });
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('load', () => { loadLeaderboard(); resizeCanvas(); showNameInputScreen(); });
 
     </script>
 </body>
