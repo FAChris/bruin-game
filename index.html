@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Bruin Catch (Leaderboard Load Fix)</title> <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <title>Bruin Catch (Spawn Rate & Fullscreen Fix)</title> <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
+        /* --- CSS Styles (No changes needed here, but kept for completeness) --- */
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #ADD8E6; font-family: 'Press Start 2P', cursive; }
         body { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; min-height: 100vh; padding: 1rem; box-sizing: border-box; touch-action: none; transition: background-color 1s ease; }
         .intro-text { font-size: 0.9em; color: #333; margin-bottom: 1rem; text-align: center; flex-shrink: 0; width: 100%; }
@@ -120,7 +121,7 @@
         let comboCount = 0; const comboThreshold = 3;
         let comboMultiplier = 1; const maxComboMultiplier = 5;
         let isBonusRoundActive = false; let bonusRoundTimer = 0; const bonusRoundDuration = 600;
-        const bonusRoundChance = 0.0001;
+        const bonusRoundChance = 0.0001; // Keep bonus round chance low
         let isPlayerBig = false; let playerBigTimer = 0; const playerBigDuration = 480;
         let isPlayerSmall = false; let playerSmallTimer = 0; const playerSmallDuration = 480;
         let passiveScoreTimer = 0; const passiveScoreInterval = 60;
@@ -140,8 +141,11 @@
         // --- Item Properties ---
         const itemSize = 35;
         const goodItems = ['🎓', '📚', '🏀', '🏆']; const badItems = ['🗑️', '💥', '💔'];
-        const goldenItemEmoji = '🌟'; const superRareItemEmoji = '💎';
-        const lifeItemEmoji = '💙'; const growItemEmoji = '🍄'; const shrinkItemEmoji = '💧';
+        const goldenItemEmoji = '🌟'; // Star
+        const superRareItemEmoji = '💎'; // Diamond/Gem
+        const lifeItemEmoji = '💙'; // Life
+        const growItemEmoji = '🍄'; // Grow
+        const shrinkItemEmoji = '💧'; // Shrink
         const itemValue = 10; const goldenItemValue = 50; const superRareItemValue = 150;
         const penaltyValue = 0; const missPenalty = 1;
         const superRareSpeedMultiplier = 1.8;
@@ -154,7 +158,7 @@
         const growParticleColor = '#32CD32'; const shrinkParticleColor = '#8A2BE2';
 
         // --- Local Storage Key ---
-        const LEADERBOARD_KEY = 'bruinCatchLeaderboard_v2';
+        const LEADERBOARD_KEY = 'bruinCatchLeaderboard_v2'; // Keep version consistent
 
         // --- Theme Colors ---
         let themeColors = { sky1: '#87CEEB', sky2: '#ADD8E6', ground1: '#8B4513', ground2: '#A0522D', bodyBg: '#e0f2fe' };
@@ -170,73 +174,13 @@
         function playSound(type, note = 'C4', duration = '8n') { /* ... No changes needed ... */ if (!soundsEnabled) return; try { const now = Tone.now(); if (type === 'good' && collectSynth) collectSynth.triggerAttackRelease('C5', '16n', now); else if (type === 'golden' && collectSynth) collectSynth.triggerAttackRelease('E5', '16n', now + 0.01); else if (type === 'superRare' && collectSynth) collectSynth.triggerAttackRelease('G5', '8n', now + 0.02); else if (type === 'bad' && hurtSynth) hurtSynth.triggerAttackRelease('C3', '8n', now); else if (type === 'miss' && hurtSynth) hurtSynth.triggerAttackRelease('A2', '16n', now); else if (type === 'life' && powerupSynth) powerupSynth.triggerAttackRelease('A4', '8n', now); else if (type === 'grow' && powerupSynth) powerupSynth.triggerAttackRelease('E4', '8n', now); else if (type === 'shrink' && powerupSynth) powerupSynth.triggerAttackRelease('C4', '8n', now); else if (type === 'levelUp' && levelUpSynth) levelUpSynth.triggerAttackRelease('G4', '4n', now); else if (type === 'bonusStart' && bonusSynth) bonusSynth.triggerAttackRelease('C5', '2n', now); else if (type === 'gameOver' && hurtSynth) hurtSynth.triggerAttackRelease('F2', '1n', now); } catch (e) { console.error("Sound playback error:", e); } }
 
         // --- Leaderboard Handling ---
-        function loadLeaderboard() {
-            // Added try...catch for safety
-            try {
-                const storedData = localStorage.getItem(LEADERBOARD_KEY);
-                leaderboard = storedData ? JSON.parse(storedData) : [];
-                if (!Array.isArray(leaderboard)) leaderboard = [];
-                leaderboard.sort((a, b) => b.score - a.score || b.level - a.level);
-            } catch (e) {
-                console.error("LS Error (Load Leaderboard):", e);
-                leaderboard = []; // Reset on error
-            } finally {
-                 // Always update display even if loading failed (shows defaults)
-                 displayLeaderboard();
-                 updateTopScoreDisplay();
-            }
-        }
-        function saveToLeaderboard() {
-             // Added try...catch for safety
-             try {
-                const currentEntry = { name: playerName, score: score, level: level };
-                let playerIndex = leaderboard.findIndex(entry => entry.name === playerName);
-                if (playerIndex !== -1) { if (score > leaderboard[playerIndex].score || (score === leaderboard[playerIndex].score && level > leaderboard[playerIndex].level)) { leaderboard[playerIndex] = currentEntry; } else { return; } }
-                else { leaderboard.push(currentEntry); }
-                leaderboard.sort((a, b) => b.score - a.score || b.level - a.level);
-                leaderboard = leaderboard.slice(0, 5);
-                localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
-            } catch (e) { console.error("LS Error (Save Leaderboard):", e); }
-            finally {
-                 // Always update display after attempting save
-                 displayLeaderboard();
-                 updateTopScoreDisplay();
-            }
-        }
-        function displayLeaderboard() {
-             // Added check for element existence
-             if (!leaderboardListElement) return;
-             leaderboardListElement.innerHTML = '';
-             if (leaderboard.length === 0) { leaderboardListElement.innerHTML = '<li>No scores yet!</li>'; return; }
-             leaderboard.forEach((entry, index) => { const li = document.createElement('li'); const safeName = entry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;"); li.innerHTML = `<span class="rank">${index + 1}.</span><span class="name">${safeName}</span><span class="score">${entry.score}</span><span class="level">(L${entry.level})</span>`; leaderboardListElement.appendChild(li); });
-         }
-        function updateTopScoreDisplay() {
-             // Added checks for element existence
-             if (leaderboard.length > 0) {
-                 const topEntry = leaderboard[0];
-                 const safeName = topEntry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                 if(highScoreElement) highScoreElement.textContent = `Hi: ${topEntry.score} (${safeName})`;
-                 if(highLevelElement) highLevelElement.textContent = `Hi Lvl: ${topEntry.level}`;
-             } else {
-                 if(highScoreElement) highScoreElement.textContent = `Hi: 0 (Bruin)`;
-                 if(highLevelElement) highLevelElement.textContent = `Hi Lvl: 1`;
-             }
-        }
+        function loadLeaderboard() { /* ... No changes needed ... */ try { const storedData = localStorage.getItem(LEADERBOARD_KEY); leaderboard = storedData ? JSON.parse(storedData) : []; if (!Array.isArray(leaderboard)) leaderboard = []; leaderboard.sort((a, b) => b.score - a.score || b.level - a.level); } catch (e) { console.error("LS Error (Load Leaderboard):", e); leaderboard = []; } finally { displayLeaderboard(); updateTopScoreDisplay(); } }
+        function saveToLeaderboard() { /* ... No changes needed ... */ try { const currentEntry = { name: playerName, score: score, level: level }; let playerIndex = leaderboard.findIndex(entry => entry.name === playerName); if (playerIndex !== -1) { if (score > leaderboard[playerIndex].score || (score === leaderboard[playerIndex].score && level > leaderboard[playerIndex].level)) { leaderboard[playerIndex] = currentEntry; } else { return; } } else { leaderboard.push(currentEntry); } leaderboard.sort((a, b) => b.score - a.score || b.level - a.level); leaderboard = leaderboard.slice(0, 5); localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard)); } catch (e) { console.error("LS Error (Save Leaderboard):", e); } finally { displayLeaderboard(); updateTopScoreDisplay(); } }
+        function displayLeaderboard() { /* ... No changes needed ... */ if (!leaderboardListElement) return; leaderboardListElement.innerHTML = ''; if (leaderboard.length === 0) { leaderboardListElement.innerHTML = '<li>No scores yet!</li>'; return; } leaderboard.forEach((entry, index) => { const li = document.createElement('li'); const safeName = entry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;"); li.innerHTML = `<span class="rank">${index + 1}.</span><span class="name">${safeName}</span><span class="score">${entry.score}</span><span class="level">(L${entry.level})</span>`; leaderboardListElement.appendChild(li); }); }
+        function updateTopScoreDisplay() { /* ... No changes needed ... */ if (leaderboard.length > 0) { const topEntry = leaderboard[0]; const safeName = topEntry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;"); if(highScoreElement) highScoreElement.textContent = `Hi: ${topEntry.score} (${safeName})`; if(highLevelElement) highLevelElement.textContent = `Hi Lvl: ${topEntry.level}`; } else { if(highScoreElement) highScoreElement.textContent = `Hi: 0 (Bruin)`; if(highLevelElement) highLevelElement.textContent = `Hi Lvl: 1`; } }
 
         // --- Resize Canvas ---
-        function resizeCanvas() {
-            canvas.width = gameContainer.clientWidth; canvas.height = gameContainer.clientHeight;
-            // Calculate groundY *after* getting canvas dimensions
-            groundY = canvas.height - groundHeight - basePlayerHeight;
-            if (player) {
-                 player.y = canvas.height - player.currentHeight - 10;
-                 player.x = Math.max(0, Math.min(canvas.width - player.currentWidth, player.x));
-            }
-            // Draw immediately only if game is running
-            if (!isGameOver) {
-                drawGame();
-            }
-        }
+        function resizeCanvas() { /* ... No changes needed ... */ canvas.width = gameContainer.clientWidth; canvas.height = gameContainer.clientHeight; groundY = canvas.height - groundHeight - basePlayerHeight; if (player) { player.y = canvas.height - player.currentHeight - 10; player.x = Math.max(0, Math.min(canvas.width - player.currentWidth, player.x)); } if (!isGameOver) { drawGame(); } }
 
         // --- Particle System ---
         function createParticle(x, y, count = 8, color = goodParticleColor, speed = 3, type = 'burst') { /* ... No changes ... */ for (let i = 0; i < count; i++) { let vx, vy; if (type === 'burst') { vx = (Math.random() - 0.5) * speed * 1.5; vy = (Math.random() - 0.5) * speed * 1.5; } else if (type === 'upward') { vx = (Math.random() - 0.5) * speed * 0.8; vy = (Math.random() * -speed) - 1; } else if (type === 'radiate') { const angle = Math.random() * Math.PI * 2; const currentSpeed = Math.random() * speed * 0.5 + 0.2; vx = Math.cos(angle) * currentSpeed; vy = Math.sin(angle) * currentSpeed; } else { vx = (Math.random() - 0.5) * speed * 1.5; vy = (Math.random() * -speed) - 1; } particles.push({ x: x, y: y, vx: vx, vy: vy, life: particleLifespan + Math.random() * 20, size: Math.random() * 4 + 2, color: color, alpha: 1.0 }); } }
@@ -244,7 +188,66 @@
 
         // --- Object Creation ---
         function createPlayer() { /* ... No changes needed ... */ playerWidth = basePlayerWidth; playerHeight = basePlayerHeight; return { x: canvas.width / 2 - playerWidth / 2, y: canvas.height - playerHeight - 10, baseWidth: basePlayerWidth, baseHeight: basePlayerHeight, currentWidth: playerWidth, currentHeight: playerHeight, emoji: playerEmoji, dx: 0, animFrame: 0, update: function() { let moved = false; if (this.dx !== 0) { this.x += this.dx; moved = true; this.animFrame = (this.animFrame + 1) % (playerAnimSpeed * 2); } else { this.animFrame = 0; } if (this.x < 0) this.x = 0; if (this.x > canvas.width - this.currentWidth) this.x = canvas.width - this.currentWidth; if (isPlayerBig) { playerBigTimer--; if (playerBigTimer <= 0) this.setSize('normal'); } if (isPlayerSmall) { playerSmallTimer--; if (playerSmallTimer <= 0) this.setSize('normal'); } }, draw: function() { ctx.save(); const scaleFactor = (this.dx !== 0 && this.animFrame < playerAnimSpeed) ? 1.05 : 1.0; ctx.translate(this.x + this.currentWidth / 2, this.y + this.currentHeight / 2); ctx.scale(scaleFactor, scaleFactor); ctx.font = `${this.currentHeight}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(this.emoji, 0, 0); ctx.restore(); }, setSize: function(sizeType) { isPlayerBig = false; isPlayerSmall = false; playerBigTimer = 0; playerSmallTimer = 0; if (sizeType === 'big') { this.currentWidth = this.baseWidth * 1.5; this.currentHeight = this.baseHeight * 1.5; isPlayerBig = true; playerBigTimer = playerBigDuration; } else if (sizeType === 'small') { this.currentWidth = this.baseWidth * 0.6; this.currentHeight = this.baseHeight * 0.6; isPlayerSmall = true; playerSmallTimer = playerSmallDuration; } else { this.currentWidth = this.baseWidth; this.currentHeight = this.baseHeight; } this.y = canvas.height - this.currentHeight - 10; this.x = Math.max(0, Math.min(canvas.width - this.currentWidth, this.x)); playerWidth = this.currentWidth; playerHeight = this.currentHeight; }, moveLeft: function() { this.dx = -playerSpeed; }, moveRight: function() { this.dx = playerSpeed; }, stop: function() { this.dx = 0; this.animFrame = 0; } }; }
-        function createItem(bonusActive = false) { /* ... No changes needed ... */ let emoji; let type; let isGood = true; let isGolden = false; let isSuperRare = false; let itemSpeed = gameSpeed + Math.random() * 1.5; const rand = Math.random(); if (bonusActive) { if (rand < 0.05) { emoji = superRareItemEmoji; type = 'superRare'; isSuperRare = true; itemSpeed = gameSpeed * superRareSpeedMultiplier + Math.random() * 2; } else if (rand < 0.25) { emoji = goldenItemEmoji; type = 'golden'; isGolden = true; } else { emoji = goodItems[Math.floor(Math.random() * goodItems.length)]; type = 'good'; } } else { if (rand < 0.008) { emoji = superRareItemEmoji; type = 'superRare'; isSuperRare = true; itemSpeed = gameSpeed * superRareSpeedMultiplier + Math.random() * 2; } else if (rand < 0.04) { emoji = goldenItemEmoji; type = 'golden'; isGolden = true; } else if (rand < 0.07) { emoji = lifeItemEmoji; type = 'life'; } else if (rand < 0.11) { emoji = growItemEmoji; type = 'grow'; } else if (rand < 0.15) { emoji = shrinkItemEmoji; type = 'shrink'; } else if (rand < 0.30) { emoji = badItems[Math.floor(Math.random() * badItems.length)]; type = 'bad'; isGood = false; } else { emoji = goodItems[Math.floor(Math.random() * goodItems.length)]; type = 'good'; } } return { x: Math.random() * (canvas.width - itemSize), y: -itemSize, size: itemSize, emoji: emoji, type: type, isGood: isGood, isGolden: isGolden, isSuperRare: isSuperRare, speed: itemSpeed, update: function() { this.y += this.speed; }, draw: function() { ctx.save(); ctx.font = `${this.size}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; if (this.type === 'bad' && Math.random() < 0.3) { createParticle(this.x + this.size / 2, this.y + this.size / 2, 1, badItemSparkleColor, 1.8, 'radiate'); } else if (this.isGolden) { ctx.shadowColor = 'rgba(255, 223, 0, 0.8)'; ctx.shadowBlur = 10; } else if (this.isSuperRare) { ctx.shadowColor = 'rgba(200, 200, 255, 0.9)'; ctx.shadowBlur = 12; if (Math.random() < 0.4) { createParticle(this.x + this.size / 2, this.y + this.size / 2, 1, superRareParticleColor, 1.2, 'radiate'); } } else if (this.type === 'life') { ctx.shadowColor = 'rgba(0, 191, 255, 0.7)'; ctx.shadowBlur = 8;} else if (this.type === 'grow') { ctx.shadowColor = 'rgba(50, 205, 50, 0.7)'; ctx.shadowBlur = 8;} else if (this.type === 'shrink') { ctx.shadowColor = 'rgba(138, 43, 226, 0.7)'; ctx.shadowBlur = 8;} ctx.fillText(this.emoji, this.x + this.size / 2, this.y + this.size / 2); ctx.restore(); } }; }
+
+        // *** UPDATED createItem function with adjusted probabilities ***
+        function createItem(bonusActive = false) {
+            let emoji;
+            let type;
+            let isGood = true;
+            let isGolden = false;
+            let isSuperRare = false;
+            let itemSpeed = gameSpeed + Math.random() * 1.5;
+            const rand = Math.random(); // Random number between 0 and 1
+
+            if (bonusActive) {
+                // Bonus round probabilities (more good/golden/super rare)
+                if (rand < 0.05) { // 5% chance for Super Rare in bonus
+                    emoji = superRareItemEmoji; type = 'superRare'; isSuperRare = true; itemSpeed = gameSpeed * superRareSpeedMultiplier + Math.random() * 2;
+                } else if (rand < 0.25) { // 20% chance for Golden in bonus (0.05 to 0.25)
+                    emoji = goldenItemEmoji; type = 'golden'; isGolden = true;
+                } else { // 75% chance for Good in bonus
+                    emoji = goodItems[Math.floor(Math.random() * goodItems.length)]; type = 'good';
+                }
+            } else {
+                // Regular game probabilities (ADJUSTED)
+                // Lowered chances for special items, added super rare chance
+                if (rand < 0.005) { // 0.5% chance for Super Rare (Diamond) - VERY RARE!
+                    emoji = superRareItemEmoji; type = 'superRare'; isSuperRare = true; itemSpeed = gameSpeed * superRareSpeedMultiplier + Math.random() * 2;
+                } else if (rand < 0.025) { // 2% chance for Golden (Star) (0.005 to 0.025) - Less common
+                    emoji = goldenItemEmoji; type = 'golden'; isGolden = true;
+                } else if (rand < 0.055) { // 3% chance for Life (0.025 to 0.055) - Less common
+                    emoji = lifeItemEmoji; type = 'life';
+                } else if (rand < 0.080) { // 2.5% chance for Grow (0.055 to 0.080) - Less common
+                    emoji = growItemEmoji; type = 'grow';
+                } else if (rand < 0.105) { // 2.5% chance for Shrink (0.080 to 0.105) - Less common
+                    emoji = shrinkItemEmoji; type = 'shrink';
+                } else if (rand < 0.305) { // 20% chance for Bad (0.105 to 0.305) - Kept similar
+                    emoji = badItems[Math.floor(Math.random() * badItems.length)]; type = 'bad'; isGood = false;
+                } else { // ~69.5% chance for Good (Remaining probability)
+                    emoji = goodItems[Math.floor(Math.random() * goodItems.length)]; type = 'good';
+                }
+            }
+
+            // Return the item object (unchanged from here)
+            return {
+                x: Math.random() * (canvas.width - itemSize), y: -itemSize, size: itemSize,
+                emoji: emoji, type: type, isGood: isGood, isGolden: isGolden, isSuperRare: isSuperRare,
+                speed: itemSpeed,
+                update: function() { this.y += this.speed; },
+                draw: function() {
+                    ctx.save();
+                    ctx.font = `${this.size}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    if (this.type === 'bad' && Math.random() < 0.3) { createParticle(this.x + this.size / 2, this.y + this.size / 2, 1, badItemSparkleColor, 1.8, 'radiate'); }
+                    else if (this.isGolden) { ctx.shadowColor = 'rgba(255, 223, 0, 0.8)'; ctx.shadowBlur = 10; }
+                    else if (this.isSuperRare) { ctx.shadowColor = 'rgba(200, 200, 255, 0.9)'; ctx.shadowBlur = 12; if (Math.random() < 0.4) { createParticle(this.x + this.size / 2, this.y + this.size / 2, 1, superRareParticleColor, 1.2, 'radiate'); } }
+                    else if (this.type === 'life') { ctx.shadowColor = 'rgba(0, 191, 255, 0.7)'; ctx.shadowBlur = 8;}
+                    else if (this.type === 'grow') { ctx.shadowColor = 'rgba(50, 205, 50, 0.7)'; ctx.shadowBlur = 8;}
+                    else if (this.type === 'shrink') { ctx.shadowColor = 'rgba(138, 43, 226, 0.7)'; ctx.shadowBlur = 8;}
+                    ctx.fillText(this.emoji, this.x + this.size / 2, this.y + this.size / 2);
+                    ctx.restore();
+                }
+            };
+        }
 
         // --- Game Logic ---
         function checkLevelUp() { /* ... No changes needed ... */ if (level - 1 < levelThresholds.length && score >= levelThresholds[level - 1]) { level++; baseGameSpeed += levelSpeedIncrease; baseItemSpawnInterval = Math.max(20, baseItemSpawnInterval - levelIntervalDecrease); levelElement.textContent = `Level: ${level}`; console.log(`Level Up! Level: ${level}, Speed: ${baseGameSpeed.toFixed(2)}, Interval: ${baseItemSpawnInterval}`); levelUpMessageElement.textContent = `Level ${level}!`; levelUpMessageElement.style.display = 'block'; levelUpMessageElement.style.animation = 'none'; levelUpMessageElement.offsetHeight; levelUpMessageElement.style.animation = ''; playSound('levelUp'); } gameSpeed = baseGameSpeed; itemSpawnInterval = baseItemSpawnInterval; }
@@ -254,171 +257,84 @@
         function showItemNotification(text) { /* ... No changes needed ... */ if (!itemNotificationElement) return; itemNotificationElement.textContent = text; itemNotificationElement.style.display = 'block'; clearTimeout(notificationTimeoutId); notificationTimeoutId = setTimeout(() => { itemNotificationElement.style.display = 'none'; }, 1500); itemNotificationElement.style.animation = 'none'; itemNotificationElement.offsetHeight; itemNotificationElement.style.animation = ''; }
 
         // --- Drawing ---
-        // *** drawBackground function definition ***
-        function drawBackground() {
-             if (!themeColors || !ctx || !canvas) return; // Safety checks
-            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.7);
-            skyGradient.addColorStop(0, themeColors.sky1 || '#87CEEB');
-            skyGradient.addColorStop(1, themeColors.sky2 || '#ADD8E6');
-            ctx.fillStyle = skyGradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            if (typeof groundHeight !== 'undefined' && groundHeight > 0 && canvas.height > groundHeight) {
-                const groundGradient = ctx.createLinearGradient(0, canvas.height - groundHeight, 0, canvas.height);
-                groundGradient.addColorStop(0, themeColors.ground1 || '#8B4513');
-                groundGradient.addColorStop(1, themeColors.ground2 || '#A0522D');
-                ctx.fillStyle = groundGradient;
-                ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
-            }
-        }
-        function drawGame() {
-            if (canvas.style.visibility !== 'visible' || !ctx) { return; }
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawBackground(); // Draw background
-            items.forEach(item => item.draw()); // Draw items
-            if (player) player.draw(); // Draw player
-            handleParticles(); // Draw particles
-            // Message display is handled by gameOver and showNameInputScreen
-        }
-
+        function drawBackground() { /* ... No changes needed ... */ if (!themeColors || !ctx || !canvas) return; const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.7); skyGradient.addColorStop(0, themeColors.sky1 || '#87CEEB'); skyGradient.addColorStop(1, themeColors.sky2 || '#ADD8E6'); ctx.fillStyle = skyGradient; ctx.fillRect(0, 0, canvas.width, canvas.height); if (typeof groundHeight !== 'undefined' && groundHeight > 0 && canvas.height > groundHeight) { const groundGradient = ctx.createLinearGradient(0, canvas.height - groundHeight, 0, canvas.height); groundGradient.addColorStop(0, themeColors.ground1 || '#8B4513'); groundGradient.addColorStop(1, themeColors.ground2 || '#A0522D'); ctx.fillStyle = groundGradient; ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight); } }
+        function drawGame() { /* ... No changes needed ... */ if (canvas.style.visibility !== 'visible' || !ctx) { return; } ctx.clearRect(0, 0, canvas.width, canvas.height); drawBackground(); items.forEach(item => item.draw()); if (player) player.draw(); handleParticles(); }
 
         // --- Game Loop & State Management ---
-        function gameLoop() {
-            // ** FIXED: Check game over at the START **
-            if (isGameOver) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-                return;
-            }
-
-            // Update game state
-            if (player) player.update();
-            handleItems(); // Includes collision checks which might set isGameOver
-            // ** FIXED: Check game over AGAIN after item handling **
-            if (isGameOver) {
-                 cancelAnimationFrame(animationFrameId);
-                 animationFrameId = null;
-                 return;
-            }
-            handleParticles();
-            updateBonusRound();
-
-            // Passive score for size changes
-            passiveScoreTimer++;
-            if (passiveScoreTimer >= passiveScoreInterval) {
-                passiveScoreTimer = 0;
-                let passiveScoreToAdd = 0;
-                if (isPlayerSmall) { passiveScoreToAdd = smallPassiveScore; }
-                else if (isPlayerBig) { passiveScoreToAdd = bigPassiveScore; }
-                if (passiveScoreToAdd > 0) {
-                     score += passiveScoreToAdd; score = Math.max(0, score);
-                     scoreElement.textContent = `Score: ${score}`; checkLevelUp();
-                }
-            }
-
-            // Draw game state
-            drawGame();
-
-            // Request next frame ONLY if game is still running
-            animationFrameId = requestAnimationFrame(gameLoop);
-        }
-
-
-        function gameOver() {
-            if (isGameOver) return;
-            isGameOver = true;
-            console.log("Game Over Triggered");
-            cancelAnimationFrame(animationFrameId); // STOP THE LOOP
-            animationFrameId = null;
-            saveToLeaderboard();
-            messageElement.innerHTML = `Game Over!<br>Level: ${level} | Score: ${score}<br>Tap or Click to Play Again`;
-            messageElement.style.display = 'block'; // Show game over message
-            gameContainer.style.cursor = 'pointer';
-            playSound('gameOver');
-        }
-        function showNameInputScreen() {
-             isGameOver = true;
-             cancelAnimationFrame(animationFrameId);
-             animationFrameId = null;
-             nameInputOverlay.style.display = 'flex';
-             canvas.style.visibility = 'hidden';
-             uiOverlay.style.visibility = 'hidden';
-             messageElement.style.display = 'none'; // Hide game over message
-             levelUpMessageElement.style.display = 'none';
-             loadLeaderboard();
-             playerNameInput.value = playerName;
-             try { playerNameInput.focus(); } catch(e) {}
-        }
-
-
-        function initializeGame() {
-            // ** FIXED: Ensure game isn't already running and reset crucial states **
-            if (!isGameOver) {
-                 console.log("InitializeGame called but game not over. Ignoring.");
-                 return;
-            }
-            console.log("Initializing Game...");
-            initAudio();
-
-            isGameOver = false; // Set game state to running *before* starting loop
-            score = 0; lives = 3; level = 1;
-            baseGameSpeed = 2; baseItemSpawnInterval = 95;
-            gameSpeed = baseGameSpeed; itemSpawnInterval = baseItemSpawnInterval;
-            items = []; particles = []; itemTimer = 0;
-            comboCount = 0; comboMultiplier = 1;
-            isBonusRoundActive = false; bonusRoundTimer = 0;
-            isPlayerBig = false; playerBigTimer = 0;
-            isPlayerSmall = false; playerSmallTimer = 0;
-            passiveScoreTimer = 0;
-
-            // Update UI
-            scoreElement.textContent = `Score: ${score}`;
-            livesElement.textContent = `Lives: ${lives}`;
-            levelElement.textContent = `Level: ${level}`;
-            playerNameDisplayElement.textContent = `Player: ${playerName}`;
-            comboDisplayElement.style.display = 'none';
-            bonusDisplayElement.style.display = 'none';
-            updateTopScoreDisplay();
-
-            messageElement.style.display = 'none';
-            levelUpMessageElement.style.display = 'none';
-            gameContainer.style.cursor = 'grab';
-            canvas.style.visibility = 'visible';
-            uiOverlay.style.visibility = 'visible';
-
-            // Create or reset player
-            resizeCanvas(); // Call resize to set groundY before creating player
-            if (!player) { player = createPlayer(); }
-            else { player.x = canvas.width / 2 - basePlayerWidth / 2; player.dx = 0; player.setSize('normal'); }
-
-            // Start the game loop
-            cancelAnimationFrame(animationFrameId); // Clear just in case
-            animationFrameId = requestAnimationFrame(gameLoop);
-            console.log("Game Loop Started with ID:", animationFrameId);
-        }
+        function gameLoop() { /* ... No changes needed ... */ if (isGameOver) { cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } if (player) player.update(); handleItems(); if (isGameOver) { cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } handleParticles(); updateBonusRound(); passiveScoreTimer++; if (passiveScoreTimer >= passiveScoreInterval) { passiveScoreTimer = 0; let passiveScoreToAdd = 0; if (isPlayerSmall) { passiveScoreToAdd = smallPassiveScore; } else if (isPlayerBig) { passiveScoreToAdd = bigPassiveScore; } if (passiveScoreToAdd > 0) { score += passiveScoreToAdd; score = Math.max(0, score); scoreElement.textContent = `Score: ${score}`; checkLevelUp(); } } drawGame(); animationFrameId = requestAnimationFrame(gameLoop); }
+        function gameOver() { /* ... No changes needed ... */ if (isGameOver) return; isGameOver = true; console.log("Game Over Triggered"); cancelAnimationFrame(animationFrameId); animationFrameId = null; saveToLeaderboard(); messageElement.innerHTML = `Game Over!<br>Level: ${level} | Score: ${score}<br>Tap or Click to Play Again`; messageElement.style.display = 'block'; gameContainer.style.cursor = 'pointer'; playSound('gameOver'); }
+        function showNameInputScreen() { /* ... No changes needed ... */ isGameOver = true; cancelAnimationFrame(animationFrameId); animationFrameId = null; nameInputOverlay.style.display = 'flex'; canvas.style.visibility = 'hidden'; uiOverlay.style.visibility = 'hidden'; messageElement.style.display = 'none'; levelUpMessageElement.style.display = 'none'; loadLeaderboard(); playerNameInput.value = playerName; try { playerNameInput.focus(); } catch(e) {} }
+        function initializeGame() { /* ... No changes needed ... */ if (!isGameOver) { console.log("InitializeGame called but game not over. Ignoring."); return; } console.log("Initializing Game..."); initAudio(); isGameOver = false; score = 0; lives = 3; level = 1; baseGameSpeed = 2; baseItemSpawnInterval = 95; gameSpeed = baseGameSpeed; itemSpawnInterval = baseItemSpawnInterval; items = []; particles = []; itemTimer = 0; comboCount = 0; comboMultiplier = 1; isBonusRoundActive = false; bonusRoundTimer = 0; isPlayerBig = false; playerBigTimer = 0; isPlayerSmall = false; playerSmallTimer = 0; passiveScoreTimer = 0; scoreElement.textContent = `Score: ${score}`; livesElement.textContent = `Lives: ${lives}`; levelElement.textContent = `Level: ${level}`; playerNameDisplayElement.textContent = `Player: ${playerName}`; comboDisplayElement.style.display = 'none'; bonusDisplayElement.style.display = 'none'; updateTopScoreDisplay(); messageElement.style.display = 'none'; levelUpMessageElement.style.display = 'none'; gameContainer.style.cursor = 'grab'; canvas.style.visibility = 'visible'; uiOverlay.style.visibility = 'visible'; resizeCanvas(); if (!player) { player = createPlayer(); } else { player.x = canvas.width / 2 - basePlayerWidth / 2; player.dx = 0; player.setSize('normal'); } cancelAnimationFrame(animationFrameId); animationFrameId = requestAnimationFrame(gameLoop); console.log("Game Loop Started with ID:", animationFrameId); }
 
         // --- Event Listeners ---
         // Keyboard Controls
-        window.addEventListener('keydown', (e) => { if (isGameOver && nameInputOverlay.style.display === 'flex' && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') && document.activeElement !== playerNameInput) { startGameButton.click(); return; } if (isGameOver) return; if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') { if (player) player.moveLeft(); } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') { if (player) player.moveRight(); } });
-        window.addEventListener('keyup', (e) => { if (isGameOver || !player) return; if (((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') && player.dx < 0) || ((e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') && player.dx > 0)) { player.stop(); } });
+        window.addEventListener('keydown', (e) => {
+            // *** ADDED: Fullscreen toggle on 'f' key ***
+            if (e.key.toLowerCase() === 'f') {
+                toggleFullScreen();
+                return; // Prevent other actions if 'f' is pressed
+            }
+
+            // Existing keydown logic
+            if (isGameOver && nameInputOverlay.style.display === 'flex' && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') && document.activeElement !== playerNameInput) {
+                startGameButton.click();
+                return;
+            }
+            if (isGameOver || !player) return; // Don't process movement if game over or no player
+
+            if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') {
+                player.moveLeft();
+            } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') {
+                player.moveRight();
+            }
+        });
+        window.addEventListener('keyup', (e) => { /* ... No changes needed ... */ if (isGameOver || !player) return; if (((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') && player.dx < 0) || ((e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') && player.dx > 0)) { player.stop(); } });
         // Touch Controls (Drag)
-        gameContainer.addEventListener('touchstart', (e) => { e.preventDefault(); if (isGameOver) return; if (e.touches.length > 0 && player) { isDragging = true; touchStartX = e.touches[0].clientX; playerStartX = player.x; gameContainer.style.cursor = 'grabbing'; } }, { passive: false });
-        gameContainer.addEventListener('touchmove', (e) => { e.preventDefault(); if (!isDragging || isGameOver || !player) return; if (e.touches.length > 0) { const touchCurrentX = e.touches[0].clientX; const deltaX = touchCurrentX - touchStartX; let newPlayerX = playerStartX + deltaX; newPlayerX = Math.max(0, Math.min(canvas.width - player.currentWidth, newPlayerX)); player.x = newPlayerX; } }, { passive: false });
-        const stopTouchDragging = () => { if (isDragging) { isDragging = false; touchStartX = null; playerStartX = null; gameContainer.style.cursor = 'grab'; } };
+        gameContainer.addEventListener('touchstart', (e) => { /* ... No changes needed ... */ e.preventDefault(); if (isGameOver) return; if (e.touches.length > 0 && player) { isDragging = true; touchStartX = e.touches[0].clientX; playerStartX = player.x; gameContainer.style.cursor = 'grabbing'; } }, { passive: false });
+        gameContainer.addEventListener('touchmove', (e) => { /* ... No changes needed ... */ e.preventDefault(); if (!isDragging || isGameOver || !player) return; if (e.touches.length > 0) { const touchCurrentX = e.touches[0].clientX; const deltaX = touchCurrentX - touchStartX; let newPlayerX = playerStartX + deltaX; newPlayerX = Math.max(0, Math.min(canvas.width - player.currentWidth, newPlayerX)); player.x = newPlayerX; } }, { passive: false });
+        const stopTouchDragging = () => { /* ... No changes needed ... */ if (isDragging) { isDragging = false; touchStartX = null; playerStartX = null; gameContainer.style.cursor = 'grab'; } };
         gameContainer.addEventListener('touchend', stopTouchDragging);
         gameContainer.addEventListener('touchcancel', stopTouchDragging);
         // Mouse Controls (Click/Drag)
-        gameContainer.addEventListener('mousedown', (e) => { if (isGameOver) return; if (player) { isDragging = true; touchStartX = e.clientX; playerStartX = player.x; gameContainer.style.cursor = 'grabbing'; } });
-        gameContainer.addEventListener('mousemove', (e) => { if (!isDragging || isGameOver || !player) return; const touchCurrentX = e.clientX; const deltaX = touchCurrentX - touchStartX; let newPlayerX = playerStartX + deltaX; newPlayerX = Math.max(0, Math.min(canvas.width - player.currentWidth, newPlayerX)); player.x = newPlayerX; });
-        const stopMouseDragging = () => { if (isDragging) { isDragging = false; touchStartX = null; playerStartX = null; gameContainer.style.cursor = 'grab'; } };
+        gameContainer.addEventListener('mousedown', (e) => { /* ... No changes needed ... */ if (isGameOver) return; if (player) { isDragging = true; touchStartX = e.clientX; playerStartX = player.x; gameContainer.style.cursor = 'grabbing'; } });
+        gameContainer.addEventListener('mousemove', (e) => { /* ... No changes needed ... */ if (!isDragging || isGameOver || !player) return; const touchCurrentX = e.clientX; const deltaX = touchCurrentX - touchStartX; let newPlayerX = playerStartX + deltaX; newPlayerX = Math.max(0, Math.min(canvas.width - player.currentWidth, newPlayerX)); player.x = newPlayerX; });
+        const stopMouseDragging = () => { /* ... No changes needed ... */ if (isDragging) { isDragging = false; touchStartX = null; playerStartX = null; gameContainer.style.cursor = 'grab'; } };
         window.addEventListener('mouseup', stopMouseDragging);
         gameContainer.addEventListener('mouseleave', stopMouseDragging);
          // Start Game Button Listener
-         startGameButton.addEventListener('click', () => { playerName = playerNameInput.value.trim().substring(0, 15) || "Bruin"; nameInputOverlay.style.display = 'none'; initializeGame(); });
+         startGameButton.addEventListener('click', () => { /* ... No changes needed ... */ playerName = playerNameInput.value.trim().substring(0, 15) || "Bruin"; nameInputOverlay.style.display = 'none'; initializeGame(); });
          // Allow Enter key in input field to start game
-         playerNameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') { startGameButton.click(); } });
+         playerNameInput.addEventListener('keyup', (e) => { /* ... No changes needed ... */ if (e.key === 'Enter') { startGameButton.click(); } });
          // Allow restarting (showing name input) by clicking game over message
-         messageElement.addEventListener('click', (e) => { e.stopPropagation(); if (isGameOver) { showNameInputScreen(); } });
+         messageElement.addEventListener('click', (e) => { /* ... No changes needed ... */ e.stopPropagation(); if (isGameOver) { showNameInputScreen(); } });
+
+        // *** ADDED: Fullscreen Toggle Function ***
+        function toggleFullScreen() {
+            if (!document.fullscreenElement &&    // Standard
+                !document.mozFullScreenElement && // Firefox
+                !document.webkitFullscreenElement && // Chrome, Safari and Opera
+                !document.msFullscreenElement ) {  // IE/Edge
+                if (gameContainer.requestFullscreen) {
+                    gameContainer.requestFullscreen();
+                } else if (gameContainer.mozRequestFullScreen) { /* Firefox */
+                    gameContainer.mozRequestFullScreen();
+                } else if (gameContainer.webkitRequestFullscreen) { /* Chrome, Safari & Opera */
+                    gameContainer.webkitRequestFullscreen();
+                } else if (gameContainer.msRequestFullscreen) { /* IE/Edge */
+                    gameContainer.msRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.mozCancelFullScreen) { /* Firefox */
+                    document.mozCancelFullScreen();
+                } else if (document.webkitExitFullscreen) { /* Chrome, Safari and Opera */
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) { /* IE/Edge */
+                    document.msExitFullscreen();
+                }
+            }
+        }
 
         // --- Initial Setup ---
         window.addEventListener('resize', resizeCanvas);
