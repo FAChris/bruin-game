@@ -53,12 +53,14 @@
 </head>
 <body>
     <div class="game-container" id="gameContainer">
-        <div id="name-input-overlay">
-            <h2>Enter Player Name</h2>
-            <p>Move 🐻 (Arrows/Drag) to catch falling items and avoid those with red sparkles. Reach the highest level!</p>
-            <input type="text" id="player-name-input" placeholder="Bruin" maxlength="15">
-            <button id="start-game-button">Start Game</button>
-            <div id="leaderboard-display">
+<div id="name-input-overlay">
+    <h2>Enter Player Name</h2>
+    <p>Move 🐻 (Arrows/Drag) to catch falling items and avoid those with red sparkles. Reach the highest level!</p>
+    <p>Click anywhere, then press 'F11' or 'f' for fullscreen.</p>
+    <input type="text" id="player-name-input" placeholder="Bruin" maxlength="15">
+    <button id="start-game-button">Start Game</button>
+    <div id="leaderboard-display">...</div>
+</div>
                 <h3>Leaderboard</h3>
                 <ol id="leaderboard-list"><li>Loading...</li></ol>
             </div>
@@ -264,30 +266,30 @@
         function gameLoop() { /* ... No changes needed ... */ if (isGameOver) { cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } if (player) player.update(); handleItems(); if (isGameOver) { cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } handleParticles(); updateBonusRound(); passiveScoreTimer++; if (passiveScoreTimer >= passiveScoreInterval) { passiveScoreTimer = 0; let passiveScoreToAdd = 0; if (isPlayerSmall) { passiveScoreToAdd = smallPassiveScore; } else if (isPlayerBig) { passiveScoreToAdd = bigPassiveScore; } if (passiveScoreToAdd > 0) { score += passiveScoreToAdd; score = Math.max(0, score); scoreElement.textContent = `Score: ${score}`; checkLevelUp(); } } drawGame(); animationFrameId = requestAnimationFrame(gameLoop); }
         function gameOver() { /* ... No changes needed ... */ if (isGameOver) return; isGameOver = true; console.log("Game Over Triggered"); cancelAnimationFrame(animationFrameId); animationFrameId = null; saveToLeaderboard(); messageElement.innerHTML = `Game Over!<br>Level: ${level} | Score: ${score}<br>Tap or Click to Play Again`; messageElement.style.display = 'block'; gameContainer.style.cursor = 'pointer'; playSound('gameOver'); }
         function showNameInputScreen() { /* ... No changes needed ... */ isGameOver = true; cancelAnimationFrame(animationFrameId); animationFrameId = null; nameInputOverlay.style.display = 'flex'; canvas.style.visibility = 'hidden'; uiOverlay.style.visibility = 'hidden'; messageElement.style.display = 'none'; levelUpMessageElement.style.display = 'none'; loadLeaderboard(); playerNameInput.value = playerName; try { playerNameInput.focus(); } catch(e) {} }
-        function initializeGame() { /* ... No changes needed ... */ if (!isGameOver) { console.log("InitializeGame called but game not over. Ignoring."); return; } console.log("Initializing Game..."); initAudio(); isGameOver = false; score = 0; lives = 3; level = 1; baseGameSpeed = 2; baseItemSpawnInterval = 95; gameSpeed = baseGameSpeed; itemSpawnInterval = baseItemSpawnInterval; items = []; particles = []; itemTimer = 0; comboCount = 0; comboMultiplier = 1; isBonusRoundActive = false; bonusRoundTimer = 0; isPlayerBig = false; playerBigTimer = 0; isPlayerSmall = false; playerSmallTimer = 0; passiveScoreTimer = 0; scoreElement.textContent = `Score: ${score}`; livesElement.textContent = `Lives: ${lives}`; levelElement.textContent = `Level: ${level}`; playerNameDisplayElement.textContent = `Player: ${playerName}`; comboDisplayElement.style.display = 'none'; bonusDisplayElement.style.display = 'none'; updateTopScoreDisplay(); messageElement.style.display = 'none'; levelUpMessageElement.style.display = 'none'; gameContainer.style.cursor = 'grab'; canvas.style.visibility = 'visible'; uiOverlay.style.visibility = 'visible'; resizeCanvas(); if (!player) { player = createPlayer(); } else { player.x = canvas.width / 2 - basePlayerWidth / 2; player.dx = 0; player.setSize('normal'); } cancelAnimationFrame(animationFrameId); animationFrameId = requestAnimationFrame(gameLoop); console.log("Game Loop Started with ID:", animationFrameId); }
+        function initializeGame() { /* ... No changes needed ... */ if (!isGameOver) { console.log("InitializeGame called but game not over. Ignoring."); return; } console.log("Initializing Game..."); initAudio(); isGameOver = false; score = 0; lives = 3; level = 1; baseGameSpeed = 2; baseItemSpawnInterval = 95; gameSpeed = baseGameSpeed; itemSpawnInterval = baseItemSpawnInterval; items = []; particles = []; itemTimer = 0; comboCount = 0; comboMultiplier = 1; isBonusRoundActive = false; bonusRoundTimer = 0; isPlayerBig = false; playerBigTimer = 0; isPlayerSmall = false; playerSmallTimer = 0; passiveScoreTimer = 0; scoreElement.textContent = `Score: ${score}`; livesElement.textContent = `Lives: ${lives}`; levelElement.textContent = `Level: ${level}`; playerNameDisplayElement.textContent = `Player: ${playerName}`; comboDisplayElement.style.display = 'none'; bonusDisplayElement.style.display = 'none'; updateTopScoreDisplay(); messageElement.style.display = 'none'; levelUpMessageElement.style.display = 'none'; gameContainer.style.cursor = 'grab'; canvas.style.visibility = 'visible'; uiOverlay.style.visibility = 'visible'; resizeCanvas(); if (!player) { player = createPlayer(); } else { player.x = canvas.width / 2 - basePlayerWidth / 2; player.dx = 0; player.setSize('normal'); } cancelAnimationFrame(animationFrameId); animationFrameId = requestAnimationFrame(gameLoop); console.log("Game Loop Started with ID:", animationFrameId); canvas.style.visibility = 'visible'; uiOverlay.style.visibility = 'visible'; gameContainer.focus(); }
 
         // --- Event Listeners ---
         // Keyboard Controls
-        window.addEventListener('keydown', (e) => {
-            // *** ADDED: Fullscreen toggle on 'f' key ***
-            if (e.key.toLowerCase() === 'f') {
-                toggleFullScreen();
-                return; // Prevent other actions if 'f' is pressed
-            }
+window.addEventListener('keydown', (e) => {
+    console.log('Key pressed:', e.key); // Debug key detection
+    if (e.key === 'F11' || e.key.toLowerCase() === 'f') { // Support both F11 and f
+        console.log('Fullscreen key detected, calling toggleFullScreen');
+        toggleFullScreen();
+        e.preventDefault(); // Prevent browser default (e.g., F11 in Firefox)
+        return;
+    }
 
-            // Existing keydown logic
-            if (isGameOver && nameInputOverlay.style.display === 'flex' && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') && document.activeElement !== playerNameInput) {
-                startGameButton.click();
-                return;
-            }
-            if (isGameOver || !player) return; // Don't process movement if game over or no player
-
-            if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') {
-                player.moveLeft();
-            } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') {
-                player.moveRight();
-            }
-        });
+    if (isGameOver && nameInputOverlay.style.display === 'flex' && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') && document.activeElement !== playerNameInput) {
+        startGameButton.click();
+        return;
+    }
+    if (isGameOver || !player) return;
+    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') {
+        player.moveLeft();
+    } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') {
+        player.moveRight();
+    }
+});
         window.addEventListener('keyup', (e) => { /* ... No changes needed ... */ if (isGameOver || !player) return; if (((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') && player.dx < 0) || ((e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') && player.dx > 0)) { player.stop(); } });
         // Touch Controls (Drag)
         gameContainer.addEventListener('touchstart', (e) => { /* ... No changes needed ... */ e.preventDefault(); if (isGameOver) return; if (e.touches.length > 0 && player) { isDragging = true; touchStartX = e.touches[0].clientX; playerStartX = player.x; gameContainer.style.cursor = 'grabbing'; } }, { passive: false });
@@ -309,32 +311,39 @@
          messageElement.addEventListener('click', (e) => { /* ... No changes needed ... */ e.stopPropagation(); if (isGameOver) { showNameInputScreen(); } });
 
         // *** ADDED: Fullscreen Toggle Function ***
-        function toggleFullScreen() {
-            if (!document.fullscreenElement &&    // Standard
-                !document.mozFullScreenElement && // Firefox
-                !document.webkitFullscreenElement && // Chrome, Safari and Opera
-                !document.msFullscreenElement ) {  // IE/Edge
-                if (gameContainer.requestFullscreen) {
-                    gameContainer.requestFullscreen();
-                } else if (gameContainer.mozRequestFullScreen) { /* Firefox */
-                    gameContainer.mozRequestFullScreen();
-                } else if (gameContainer.webkitRequestFullscreen) { /* Chrome, Safari & Opera */
-                    gameContainer.webkitRequestFullscreen();
-                } else if (gameContainer.msRequestFullscreen) { /* IE/Edge */
-                    gameContainer.msRequestFullscreen();
-                }
+function toggleFullScreen() {
+    try {
+        if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+            console.log('Attempting to enter fullscreen');
+            if (gameContainer.requestFullscreen) {
+                gameContainer.requestFullscreen().catch(err => console.error('Fullscreen request failed:', err));
+            } else if (gameContainer.mozRequestFullScreen) {
+                gameContainer.mozRequestFullScreen().catch(err => console.error('Moz fullscreen failed:', err));
+            } else if (gameContainer.webkitRequestFullscreen) {
+                gameContainer.webkitRequestFullscreen().catch(err => console.error('Webkit fullscreen failed:', err));
+            } else if (gameContainer.msRequestFullscreen) {
+                gameContainer.msRequestFullscreen().catch(err => console.error('MS fullscreen failed:', err));
             } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.mozCancelFullScreen) { /* Firefox */
-                    document.mozCancelFullScreen();
-                } else if (document.webkitExitFullscreen) { /* Chrome, Safari and Opera */
-                    document.webkitExitFullscreen();
-                } else if (document.msExitFullscreen) { /* IE/Edge */
-                    document.msExitFullscreen();
-                }
+                console.warn('Fullscreen API not supported');
+            }
+        } else {
+            console.log('Attempting to exit fullscreen');
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(err => console.error('Exit fullscreen failed:', err));
+            } else if (document.mozCancelFullScreen) {
+                document.mozCancelFullScreen().catch(err => console.error('Moz exit fullscreen failed:', err));
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen().catch(err => console.error('Webkit exit fullscreen failed:', err));
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen().catch(err => console.error('MS exit fullscreen failed:', err));
+            } else {
+                console.warn('Exit fullscreen API not supported');
             }
         }
+    } catch (err) {
+        console.error('Fullscreen toggle error:', err);
+    }
+}
 
         // --- Initial Setup ---
         window.addEventListener('resize', resizeCanvas);
