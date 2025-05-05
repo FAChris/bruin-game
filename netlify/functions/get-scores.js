@@ -1,5 +1,30 @@
 const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database(process.env.LAMBDA_TASK_ROOT + '/leaderboard.db');
+const dbPath = '/tmp/leaderboard.db';
+const db = new sqlite3.Database(dbPath);
+
+const initializeDatabase = () => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS scores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      level INTEGER NOT NULL,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+};
+
+db.serialize(() => {
+  db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='scores'", (err, row) => {
+    if (err) {
+      console.error('Error checking for scores table:', err.message);
+    }
+    if (!row) {
+      console.log('Scores table does not exist, creating it.');
+      initializeDatabase();
+    }
+  });
+});
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') {
