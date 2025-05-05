@@ -175,8 +175,50 @@ body {
 
         // --- Leaderboard Handling (unchanged) ---
         function loadLeaderboard() { try { const storedData = localStorage.getItem(LEADERBOARD_KEY); leaderboard = storedData ? JSON.parse(storedData) : []; if (!Array.isArray(leaderboard)) leaderboard = []; leaderboard.sort((a, b) => b.score - a.score || b.level - a.level); } catch (e) { console.error("LS Error (Load Leaderboard):", e); leaderboard = []; } finally { displayLeaderboard(); updateTopScoreDisplay(); } }
-        function saveToLeaderboard() { try { const currentEntry = { name: playerName, score: score, level: level }; let playerIndex = leaderboard.findIndex(entry => entry.name === playerName); if (playerIndex !== -1) { if (score > leaderboard[playerIndex].score || (score === leaderboard[playerIndex].score && level > leaderboard[playerIndex].level)) { leaderboard[playerIndex] = currentEntry; } else { return; } } else { leaderboard.push(currentEntry); } leaderboard.sort((a, b) => b.score - a.score || b.level - a.level); leaderboard = leaderboard.slice(0, 5); localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard)); } catch (e) { console.error("LS Error (Save Leaderboard):", e); } finally { displayLeaderboard(); updateTopScoreDisplay(); } }
-        function displayLeaderboard() { if (!leaderboardListElement) return; leaderboardListElement.innerHTML = ''; if (leaderboard.length === 0) { leaderboardListElement.innerHTML = '<li>No scores yet!</li>'; return; } leaderboard.forEach((entry, index) => { const li = document.createElement('li'); const safeName = entry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;"); li.innerHTML = `<span class="rank">${index + 1}.</span><span class="name">${safeName}</span><span class="score">${entry.score}</span><span class="level">(L${entry.level})</span>`; leaderboardListElement.appendChild(li); }); }
+function saveToLeaderboard() {
+    if (!playerName) {
+        playerName = "Bruin"; // Fallback if no name is entered
+    }
+    const scoreData = { name: playerName, score: score, level: level };
+
+    fetch('/api/scores', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(scoreData),
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Score saved:', data);
+        loadRemoteLeaderboard(); // Fetch the updated leaderboard from the server
+    })
+    .catch(error => {
+        console.error('Error saving score:', error);
+        // Optionally, you could still save locally as a fallback if the server is down
+        console.warn('Falling back to local storage for saving score.');
+        try {
+            const currentEntry = { name: playerName, score: score, level: level };
+            let playerIndex = leaderboard.findIndex(entry => entry.name === playerName);
+            if (playerIndex !== -1) {
+                if (score > leaderboard[playerIndex].score || (score === leaderboard[playerIndex].score && level > leaderboard[playerIndex].level)) {
+                    leaderboard[playerIndex] = currentEntry;
+                } else {
+                    return;
+                }
+            } else {
+                leaderboard.push(currentEntry);
+            }
+            leaderboard.sort((a, b) => b.score - a.score || b.level - a.level);
+            leaderboard = leaderboard.slice(0, 5);
+            localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
+            displayLeaderboard();
+            updateTopScoreDisplay();
+        } catch (e) {
+            console.error("LS Error (Save Leaderboard - Fallback):", e);
+        }
+    });
+}        function displayLeaderboard() { if (!leaderboardListElement) return; leaderboardListElement.innerHTML = ''; if (leaderboard.length === 0) { leaderboardListElement.innerHTML = '<li>No scores yet!</li>'; return; } leaderboard.forEach((entry, index) => { const li = document.createElement('li'); const safeName = entry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;"); li.innerHTML = `<span class="rank">${index + 1}.</span><span class="name">${safeName}</span><span class="score">${entry.score}</span><span class="level">(L${entry.level})</span>`; leaderboardListElement.appendChild(li); }); }
         function updateTopScoreDisplay() { if (leaderboard.length > 0) { const topEntry = leaderboard[0]; const safeName = topEntry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;"); if(highScoreElement) highScoreElement.textContent = `Hi: ${topEntry.score} (${safeName})`; if(highLevelElement) highLevelElement.textContent = `Hi Lvl: ${topEntry.level}`; } else { if(highScoreElement) highScoreElement.textContent = `Hi: 0 (Bruin)`; if(highLevelElement) highLevelElement.textContent = `Hi Lvl: 1`; } }
                function resetLeaderboard() {
             try {
@@ -215,6 +257,21 @@ body {
         // --- Game Loop & State Management (unchanged) ---
         function gameLoop() { if (isGameOver) { cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } if (player) player.update(); handleItems(); if (isGameOver) { cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } handleParticles(); updateBonusRound(); passiveScoreTimer++; if (passiveScoreTimer >= passiveScoreInterval) { passiveScoreTimer = 0; let passiveScoreToAdd = 0; if (isPlayerSmall) { passiveScoreToAdd = smallPassiveScore; } else if (isPlayerBig) { passiveScoreToAdd = bigPassiveScore; } if (passiveScoreToAdd > 0) { score += passiveScoreToAdd; score = Math.max(0, score); scoreElement.textContent = `Score: ${score}`; checkLevelUp(); } } drawGame(); animationFrameId = requestAnimationFrame(gameLoop); }
         function gameOver() { if (isGameOver) return; isGameOver = true; console.log("Game Over Triggered"); cancelAnimationFrame(animationFrameId); animationFrameId = null; saveToLeaderboard(); messageElement.innerHTML = `Game Over!<br>Level: ${level} | Score: ${score}<br>Tap or Click to Play Again`; messageElement.style.display = 'block'; gameContainer.style.cursor = 'pointer'; playSound('gameOver'); }
+        function loadRemoteLeaderboard() {
+    fetch('/api/scores')
+        .then(response => response.json())
+        .then(data => {
+            leaderboard = data;
+            displayLeaderboard();
+            updateTopScoreDisplay();
+        })
+        .catch(error => {
+            console.error('Error fetching leaderboard:', error);
+            // Optionally, load local leaderboard as a fallback if the server is down
+            console.warn('Falling back to local storage for leaderboard.');
+            loadLeaderboard();
+        });
+}
         function showNameInputScreen() { isGameOver = true; cancelAnimationFrame(animationFrameId); animationFrameId = null; nameInputOverlay.style.display = 'flex'; canvas.style.visibility = 'hidden'; uiOverlay.style.visibility = 'hidden'; messageElement.style.display = 'none'; levelUpMessageElement.style.display = 'none'; loadLeaderboard(); playerNameInput.value = playerName; try { playerNameInput.focus(); } catch(e) {} }
         function initializeGame() { if (!isGameOver) { console.log("InitializeGame called but game not over. Ignoring."); return; } console.log("Initializing Game..."); initAudio(); isGameOver = false; score = 0; lives = 3; level = 1; baseGameSpeed = 2; baseItemSpawnInterval = 95; gameSpeed = baseGameSpeed; itemSpawnInterval = baseItemSpawnInterval; items = []; particles = []; itemTimer = 0; comboCount = 0; comboMultiplier = 1; isBonusRoundActive = false; bonusRoundTimer = 0; isPlayerBig = false; playerBigTimer = 0; isPlayerSmall = false; playerSmallTimer = 0; passiveScoreTimer = 0; scoreElement.textContent = `Score: ${score}`; livesElement.textContent = `Lives: ${lives}`; levelElement.textContent = `Level: ${level}`; playerNameDisplayElement.textContent = `Player: ${playerName}`; comboDisplayElement.style.display = 'none'; bonusDisplayElement.style.display = 'none'; updateTopScoreDisplay(); messageElement.style.display = 'none'; levelUpMessageElement.style.display = 'none'; gameContainer.style.cursor = 'grab'; canvas.style.visibility = 'visible'; uiOverlay.style.visibility = 'visible'; resizeCanvas(); if (!player) { player = createPlayer(); } else { player.x = canvas.width / 2 - basePlayerWidth / 2; player.dx = 0; player.setSize('normal'); } cancelAnimationFrame(animationFrameId); animationFrameId = requestAnimationFrame(gameLoop); console.log("Game Loop Started with ID:", animationFrameId); }
 
@@ -305,11 +362,11 @@ body {
 
         // --- Initial Setup ---
         window.addEventListener('resize', resizeCanvas);
-        window.addEventListener('load', () => {
-            loadLeaderboard();
-            resizeCanvas();
-            showNameInputScreen();
-        });
+window.addEventListener('load', () => {
+    loadRemoteLeaderboard(); // Load leaderboard from the server on page load
+    resizeCanvas();
+    showNameInputScreen();
+});
 
     </script>
 </body>
