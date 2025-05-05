@@ -6,7 +6,7 @@
     <title>Bruin Catch (Unofficial)</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        /* --- CSS Styles --- */
+        /* --- Simplified CSS Styles --- */
         html, body {
             height: 100%;
             margin: 0;
@@ -14,116 +14,66 @@
             overflow: hidden;
             background-color: #ADD8E6;
             font-family: 'Press Start 2P', cursive;
-        }
-        body {
-            display: flex;
+            display: flex; /* Enable flexbox for centering */
             flex-direction: column;
             justify-content: center; /* Center content vertically */
-            align-items: center;      /* Center content horizontally */
-            min-height: 100vh;
-            padding: 1rem;
-            box-sizing: border-box;
-            touch-action: none;
-            transition: background-color 1s ease;
+            align-items: center; /* Center content horizontally */
         }
-        .game-container {
-            /* Removed: border, overflow, width, max-width, aspect-ratio, border-radius, box-shadow, background-color, cursor, margin-top, flex-shrink, min-height, outline */
-            display: none; /* Hide the game container */
+
+        .message {
+            position: fixed;  /* Use fixed positioning */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.95);
+            color: #2774AE;
+            padding: 20px;
+            border-radius: 10px;
+            border: 3px solid #2774AE;
+            z-index: 20;
+            text-align: center;
+            font-size: 1.2em;
+            line-height: 1.5;
+            max-width: 80%;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            display: block; /* Ensure the message is visible */
         }
-        canvas {
-            display: none;  /* Hide the canvas */
+
+        .message h2 {
+            font-size: 1.5em;
+            margin-bottom: 10px;
         }
-        .ui-overlay {
-            display: none; /* Hide the UI overlay */
+
+        .message p {
+            font-size: 1em;
+            margin-bottom: 15px;
         }
-        #name-input-overlay {
-            display: none; /* Hide the name input overlay */
+
+        .message a {
+            color: #2774AE;
+            text-decoration: underline;
         }
-.message {
-    /* Game Over Message */
-    position: relative; /* Change to relative positioning */
-    transform: none;  /* Remove transform */
-    top: 0;
-    left: 0;
-    color: #2774AE;
-    font-size: 1.2em;
-    text-align: center;
-    background-color: rgba(255, 255, 255, 0.9);
-    padding: 20px;
-    border-radius: 10px;
-    border: 3px solid #2774AE;
-    z-index: 20;
-    line-height: 1.5;
-    max-width: 80%;
-    box-shadow: 0 0 15px rgba(0,0,0,0.2);
-    /* Removed: cursor */
-    margin-bottom: 20px; /* Add margin below the message */
-}
-.message h2 {
-    font-size: 1.5em;
-    margin-bottom: 10px;
-}
-.message p {
-    font-size: 1em;
-    margin-bottom: 15px;
-}
-.message a {
-    color: #2774AE;
-    text-decoration: underline;
-}
-.message a:hover {
-    color: #1E5A8C;
-}
+
+        .message a:hover {
+            color: #1E5A8C;
+        }
 
     </style>
 </head>
 <body>
-    <div class="game-container" id="gameContainer" tabindex="0">
-        <div id="name-input-overlay">
-            <h2>Enter Player Name</h2>
-            <p>Move 🐻 (Arrows/Drag) to catch falling items. Avoid items with red sparkles. Reach the highest level!</p>
-            <input type="text" id="player-name-input" placeholder="Bruin" maxlength="15">
-            <button id="start-game-button">Start Game</button>
-            <div id="leaderboard-display">
-                <h3>Leaderboard</h3>
-                <ol id="leaderboard-list"><li>Loading...</li></ol>
-            </div>
-        </div>
-        <canvas id="gameCanvas"></canvas>
-        <div class="ui-overlay">
-            <div class="ui-left">
-                <div id="score" class="score">Score: 0</div>
-                <div id="high-score" class="high-score-display">Hi: 0 (Bruin)</div>
-            </div>
-            <div class="ui-center">
-                 <div id="level" class="level">Level: 1</div>
-                 <div id="high-level" class="high-level-display">Hi Lvl: 1</div>
-            </div>
-            <div class="ui-right">
-                <div id="lives" class="lives">Lives: 3</div>
-            </div>
-        </div>
-        <div id="player-name-display" class="player-name-display">Player: Bruin</div>
-        <div id="combo-display" class="combo-display"></div>
-        <div id="bonus-display" class="bonus-display">BONUS ROUND!</div>
-<div id="message" class="message">
-    <h2>Temporarily Offline</h2>
-    <p>
-        Bruin Catch is temporarily offline. Please check back later.
-    </p>
-</div>
-        <div id="levelUpMessage" class="level-up-message">Level Up!</div>
-        <div id="item-notification"></div>
+    <div id="message" class="message">
+        <h2>Temporarily Offline</h2>
+        <p>
+            Bruin Catch is temporarily offline. Please check back later.
+        </p>
     </div>
-
     <script>
         // --- No Game Logic or Event Listeners ---
 
         // --- Initial Setup ---
-        window.addEventListener('resize', () => {}); // Do nothing on resize
         window.addEventListener('load', () => {
-             const messageElement = document.getElementById('message');
-             messageElement.style.display = 'block';
+            const messageElement = document.getElementById('message');
+            messageElement.style.display = 'block';
         });
 
     </script>
