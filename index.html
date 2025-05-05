@@ -250,6 +250,7 @@
         gameContainer.addEventListener('mouseleave', stopMouseDragging);
          // Start Game Button Listener (unchanged)
          startGameButton.addEventListener('click', () => { playerName = playerNameInput.value.trim().substring(0, 15) || "Bruin"; nameInputOverlay.style.display = 'none'; initializeGame(); });
+        startGameButton.addEventListener('touchstart', () => { playerName = playerNameInput.value.trim().substring(0, 15) || "Bruin"; nameInputOverlay.style.display = 'none'; initializeGame(); });
          // Allow Enter key in input field to start game (unchanged)
          playerNameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') { startGameButton.click(); } });
          // Allow restarting by clicking game over message (unchanged)
