@@ -39,41 +39,41 @@
         #name-input-overlay {
             display: none; /* Hide the name input overlay */
         }
-        .message {
-            /* Game Over Message */
-            position: relative; /* Change to relative positioning */
-            transform: none;  /* Remove transform */
-            top: 0;
-            left: 0;
-            color: #2774AE;
-            font-size: 1.2em;
-            text-align: center;
-            background-color: rgba(255, 255, 255, 0.9);
-            padding: 20px;
-            border-radius: 10px;
-            border: 3px solid #2774AE;
-            z-index: 20;
-            line-height: 1.5;
-            max-width: 80%;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
-            /* Removed: cursor */
-            margin-bottom: 20px; /* Add margin below the message */
-        }
-        .message h2 {
-            font-size: 1.5em;
-            margin-bottom: 10px;
-        }
-        .message p {
-            font-size: 1em;
-            margin-bottom: 15px;
-        }
-        .message a {
-            color: #2774AE;
-            text-decoration: underline;
-        }
-        .message a:hover {
-            color: #1E5A8C;
-        }
+.message {
+    /* Game Over Message */
+    position: relative; /* Change to relative positioning */
+    transform: none;  /* Remove transform */
+    top: 0;
+    left: 0;
+    color: #2774AE;
+    font-size: 1.2em;
+    text-align: center;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 10px;
+    border: 3px solid #2774AE;
+    z-index: 20;
+    line-height: 1.5;
+    max-width: 80%;
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    /* Removed: cursor */
+    margin-bottom: 20px; /* Add margin below the message */
+}
+.message h2 {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+}
+.message p {
+    font-size: 1em;
+    margin-bottom: 15px;
+}
+.message a {
+    color: #2774AE;
+    text-decoration: underline;
+}
+.message a:hover {
+    color: #1E5A8C;
+}
 
     </style>
 </head>
@@ -106,15 +106,12 @@
         <div id="player-name-display" class="player-name-display">Player: Bruin</div>
         <div id="combo-display" class="combo-display"></div>
         <div id="bonus-display" class="bonus-display">BONUS ROUND!</div>
-        <div id="message" class="message">
-            <h2>Temporarily Offline</h2>
-            <p>
-                Bruin Catch is temporarily offline due to an issue with the leaderboard system. We are working to resolve this as soon as possible.  Please check back later.
-            </p>
-            <p>
-                For support or updates, please contact us <a href="mailto:your-support-email@example.com">here</a>.
-            </p>
-        </div>
+<div id="message" class="message">
+    <h2>Temporarily Offline</h2>
+    <p>
+        Bruin Catch is temporarily offline. Please check back later.
+    </p>
+</div>
         <div id="levelUpMessage" class="level-up-message">Level Up!</div>
         <div id="item-notification"></div>
     </div>
