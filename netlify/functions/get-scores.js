@@ -53,6 +53,7 @@ exports.handler = async (event) => {
       });
     });
 
+    // Close the database connection AFTER all operations
     await new Promise((resolve) => db.close(resolve));
 
     return {
@@ -62,6 +63,8 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('Function error:', error);
+    // Ensure database is closed even in case of an error
+    await new Promise((resolve) => db.close(resolve));
     return { statusCode: 500, body: 'Internal Server Error' };
   }
 };
