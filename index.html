@@ -266,6 +266,7 @@ body {
          playerNameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') { startGameButton.click(); } });
          // Allow restarting by clicking game over message (unchanged)
          messageElement.addEventListener('click', (e) => { e.stopPropagation(); if (isGameOver) { showNameInputScreen(); } });
+        messageElement.addEventListener('touchstart', (e) => { e.stopPropagation(); if (isGameOver) { showNameInputScreen(); } });
 
         // Fullscreen Toggle Function (unchanged, but added more logging)
         function toggleFullScreen() {
