@@ -1,0 +1,13 @@
+{
+  "name": "bruin-catch-server",
+  "version": "1.0.0",
+  "description": "Backend server for Bruin Catch leaderboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "sqlite3": "^5.1.7"
+  }
+}
