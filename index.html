@@ -152,27 +152,6 @@
         const itemNotificationElement = document.getElementById('item-notification');
         const fullscreenButtonMobile = document.getElementById('fullscreen-button-mobile');
 
-        // --- Game Variables ---
-        let player; let playerName = "Bruin";
-        let items = []; let particles = [];
-        let score = 0; let leaderboard = [];
-        let lives = 3; let level = 1;
-        let baseGameSpeed = 2; let gameSpeed = baseGameSpeed;
-        let baseItemSpawnInterval = 95; let itemSpawnInterval = baseItemSpawnInterval;
-        let itemTimer = 0;
-        let isGameOver = true;
-        let animationFrameId = null;
-        let touchStartX = null; let playerStartX = null; let isDragging = false;
-        let comboCount = 0; const comboThreshold = 3;
-        let comboMultiplier = 1; const maxComboMultiplier = 5;
-        let isBonusRoundActive = false; let bonusRoundTimer = 0; const bonusRoundDuration = 600;
-        const bonusRoundChance = 0.0001;
-        let isPlayerBig = false; let playerBigTimer = 0; const playerBigDuration = 480;
-        let isPlayerSmall = false; let playerSmallTimer = 0; const playerSmallDuration = 480;
-        let passiveScoreTimer = 0; const passiveScoreInterval = 60;
-        const smallPassiveScore = 2; const bigPassiveScore = 1;
-        let notificationTimeoutId = null;
-
         // --- Constants (unchanged) ---
         const levelThresholds = [100, 250, 500, 800, 1200];
         const levelSpeedIncrease = 0.5; const levelIntervalDecrease = 10;
@@ -334,6 +313,27 @@ if (fullscreenButtonMobile) {
         toggleFullScreen();
     });
 }
+
+         // --- Game Variables ---
+        let player; let playerName = "Bruin";
+        let items = []; let particles = [];
+        let score = 0; let leaderboard = [];
+        let lives = 3; let level = 1;
+        let baseGameSpeed = 2; let gameSpeed = baseGameSpeed;
+        let baseItemSpawnInterval = 95; let itemSpawnInterval = baseItemSpawnInterval;
+        let itemTimer = 0;
+        let isGameOver = true;
+        let animationFrameId = null;
+        let touchStartX = null; let playerStartX = null; let isDragging = false;
+        let comboCount = 0; const comboThreshold = 3;
+        let comboMultiplier = 1; const maxComboMultiplier = 5;
+        let isBonusRoundActive = false; let bonusRoundTimer = 0; const bonusRoundDuration = 600;
+        const bonusRoundChance = 0.0001;
+        let isPlayerBig = false; let playerBigTimer = 0; const playerBigDuration = 480;
+        let isPlayerSmall = false; let playerSmallTimer = 0; const playerSmallDuration = 480;
+        let passiveScoreTimer = 0; const passiveScoreInterval = 60;
+        const smallPassiveScore = 2; const bigPassiveScore = 1;
+        let notificationTimeoutId = null;
 
     </script>
 </body>
