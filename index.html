@@ -257,17 +257,44 @@ function saveToLeaderboard() {
         // --- Game Loop & State Management (unchanged) ---
         function gameLoop() { if (isGameOver) { cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } if (player) player.update(); handleItems(); if (isGameOver) { cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } handleParticles(); updateBonusRound(); passiveScoreTimer++; if (passiveScoreTimer >= passiveScoreInterval) { passiveScoreTimer = 0; let passiveScoreToAdd = 0; if (isPlayerSmall) { passiveScoreToAdd = smallPassiveScore; } else if (isPlayerBig) { passiveScoreToAdd = bigPassiveScore; } if (passiveScoreToAdd > 0) { score += passiveScoreToAdd; score = Math.max(0, score); scoreElement.textContent = `Score: ${score}`; checkLevelUp(); } } drawGame(); animationFrameId = requestAnimationFrame(gameLoop); }
         function gameOver() { if (isGameOver) return; isGameOver = true; console.log("Game Over Triggered"); cancelAnimationFrame(animationFrameId); animationFrameId = null; saveToLeaderboard(); messageElement.innerHTML = `Game Over!<br>Level: ${level} | Score: ${score}<br>Tap or Click to Play Again`; messageElement.style.display = 'block'; gameContainer.style.cursor = 'pointer'; playSound('gameOver'); }
-        function loadRemoteLeaderboard() {
+function loadRemoteLeaderboard() {
     fetch('https://aquamarine-dieffenbachia-ed23a6.netlify.app/.netlify/functions/get-scores')
         .then(response => response.json())
         .then(data => {
             leaderboard = data;
             displayLeaderboard();
-            updateTopScoreDisplay();
+
+            let personalHighScore = 0;
+            for (const entry of leaderboard) {
+                if (entry.name === playerName) {
+                    personalHighScore = Math.max(personalHighScore, entry.score);
+                }
+            }
+
+            if (leaderboard.length > 0 && personalHighScore === 0) {
+                // If leaderboard has entries but player's score wasn't found, use the top score
+                personalHighScore = leaderboard[0].score;
+            } else if (leaderboard.length === 0) {
+                personalHighScore = 0;
+            }
+
+            if (highScoreElement) {
+                highScoreElement.textContent = `Hi: ${personalHighScore} (${playerName})`;
+            }
+            if (highLevelElement && leaderboard.length > 0 && personalHighScore === leaderboard[0].score && leaderboard[0].name === playerName) {
+                highLevelElement.textContent = `Hi Lvl: ${leaderboard[0].level}`;
+            } else if (highLevelElement) {
+                let personalHighLevel = 1;
+                for (const entry of leaderboard) {
+                    if (entry.name === playerName && entry.score === personalHighScore) {
+                        personalHighLevel = Math.max(personalHighLevel, entry.level);
+                    }
+                }
+                highLevelElement.textContent = `Hi Lvl: ${personalHighLevel}`;
+            }
         })
         .catch(error => {
             console.error('Error fetching leaderboard:', error);
-            // Optionally, load local leaderboard as a fallback if the server is down
             console.warn('Falling back to local storage for leaderboard.');
             loadLeaderboard();
         });
