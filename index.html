@@ -152,14 +152,6 @@
         const itemNotificationElement = document.getElementById('item-notification');
         const fullscreenButtonMobile = document.getElementById('fullscreen-button-mobile');
 
-// ADD THIS BLOCK HERE:
-if (fullscreenButtonMobile) {
-    fullscreenButtonMobile.addEventListener('click', () => {
-        gameContainer.focus(); // Try to focus the container first
-        toggleFullScreen();
-    });
-}
-
         // --- Game Variables ---
         let player; let playerName = "Bruin";
         let items = []; let particles = [];
@@ -334,6 +326,14 @@ if (fullscreenButtonMobile) {
             resizeCanvas();
             showNameInputScreen();
         });
+
+        // ADD THIS BLOCK HERE:
+if (fullscreenButtonMobile) {
+    fullscreenButtonMobile.addEventListener('click', () => {
+        gameContainer.focus(); // Try to focus the container first
+        toggleFullScreen();
+    });
+}
 
     </script>
 </body>
