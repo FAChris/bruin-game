@@ -14,6 +14,31 @@ const run = (db, query, params = []) => {
   });
 };
 
+const get = (db, query, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.get(query, params, (err, row) => {
+      if (err) {
+        console.error('Database get error:', err.message);
+        reject(err);
+        return;
+      }
+      resolve(row);
+    });
+  });
+};
+
+const initializeDatabase = async (db) => {
+  await run(db, `
+    CREATE TABLE IF NOT EXISTS scores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      level INTEGER NOT NULL,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+};
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -21,32 +46,24 @@ exports.handler = async (event) => {
 
   let db;
   try {
-    const initializeDatabase = async () => {
-      const initDb = new sqlite3.Database(dbPath);
-      await run(initDb, `
-        CREATE TABLE IF NOT EXISTS scores (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          score INTEGER NOT NULL,
-          level INTEGER NOT NULL,
-          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
-      await new Promise((resolve) => initDb.close(resolve)); // Close after creating
-    };
-
-    await initializeDatabase();
+    db = new sqlite3.Database(dbPath);
+    await initializeDatabase(db);
 
     const { name, score, level } = JSON.parse(event.body);
     if (!name || typeof score !== 'number' || typeof level !== 'number') {
       return { statusCode: 400, body: 'Missing or invalid data.' };
     }
 
-    db = new sqlite3.Database(dbPath); // Open again for insert
-    const result = await run(db, `INSERT INTO scores (name, score, level) VALUES (?, ?, ?)`, [name, score, level]);
-    await new Promise((resolve) => db.close(resolve));
+    // Check for existing high score for the player
+    const existingHighScore = await get(db, `SELECT score FROM scores WHERE name = ? ORDER BY score DESC LIMIT 1`, [name]);
 
-    return { statusCode: 201, body: JSON.stringify({ message: 'Score saved successfully!', scoreId: result.lastID }) };
+    if (!existingHighScore || score > existingHighScore.score) {
+      // If no high score or current score is higher, insert/update
+      await run(db, `INSERT INTO scores (name, score, level) VALUES (?, ?, ?)`, [name, score, level]);
+    }
+
+    await new Promise((resolve) => db.close(resolve));
+    return { statusCode: 201, body: JSON.stringify({ message: 'Score saved successfully!' }) };
 
   } catch (error) {
     console.error('Function error:', error);
