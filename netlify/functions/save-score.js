@@ -1,5 +1,5 @@
 const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('./leaderboard.db'); // Database file will be in the function's environment
+const db = new sqlite3.Database(process.env.LAMBDA_TASK_ROOT + '/leaderboard.db');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {

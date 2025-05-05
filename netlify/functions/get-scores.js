@@ -1,5 +1,5 @@
 const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('./leaderboard.db');
+const db = new sqlite3.Database(process.env.LAMBDA_TASK_ROOT + '/leaderboard.db');
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') {
