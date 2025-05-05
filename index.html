@@ -218,9 +218,38 @@ function saveToLeaderboard() {
             console.error("LS Error (Save Leaderboard - Fallback):", e);
         }
     });
-}        function displayLeaderboard() { if (!leaderboardListElement) return; leaderboardListElement.innerHTML = ''; if (leaderboard.length === 0) { leaderboardListElement.innerHTML = '<li>No scores yet!</li>'; return; } leaderboard.forEach((entry, index) => { const li = document.createElement('li'); const safeName = entry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;"); li.innerHTML = `<span class="rank">${index + 1}.</span><span class="name">${safeName}</span><span class="score">${entry.score}</span><span class="level">(L${entry.level})</span>`; leaderboardListElement.appendChild(li); }); }
-        function updateTopScoreDisplay() { if (leaderboard.length > 0) { const topEntry = leaderboard[0]; const safeName = topEntry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;"); if(highScoreElement) highScoreElement.textContent = `Hi: ${topEntry.score} (${safeName})`; if(highLevelElement) highLevelElement.textContent = `Hi Lvl: ${topEntry.level}`; } else { if(highScoreElement) highScoreElement.textContent = `Hi: 0 (Bruin)`; if(highLevelElement) highLevelElement.textContent = `Hi Lvl: 1`; } }
-               function resetLeaderboard() {
+}        
+        function displayLeaderboard() { if (!leaderboardListElement) return; leaderboardListElement.innerHTML = ''; if (leaderboard.length === 0) { leaderboardListElement.innerHTML = '<li>No scores yet!</li>'; return; } leaderboard.forEach((entry, index) => { const li = document.createElement('li'); const safeName = entry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;"); li.innerHTML = `<span class="rank">${index + 1}.</span><span class="name">${safeName}</span><span class="score">${entry.score}</span><span class="level">(L${entry.level})</span>`; leaderboardListElement.appendChild(li); }); }
+function updateTopScoreDisplay() {
+    if (leaderboard.length > 0) {
+        let personalHighScore = 0;
+        let topScore = leaderboard[0].score;
+        let topPlayerName = leaderboard[0].name;
+        let personalHighLevel = 1;
+        let topLevel = leaderboard[0].level;
+
+        for (const entry of leaderboard) {
+            if (entry.name === playerName) {
+                personalHighScore = Math.max(personalHighScore, entry.score);
+                if (entry.score === personalHighScore) {
+                    personalHighLevel = Math.max(personalHighLevel, entry.level);
+                }
+            }
+        }
+
+        if (personalHighScore > 0) {
+            if (highScoreElement) highScoreElement.textContent = `Hi: ${personalHighScore} (${playerName})`;
+            if (highLevelElement) highLevelElement.textContent = `Hi Lvl: ${personalHighLevel}`;
+        } else {
+            if (highScoreElement) highScoreElement.textContent = `Hi: ${topScore} (${topPlayerName})`;
+            if (highLevelElement) highLevelElement.textContent = `Hi Lvl: ${topLevel}`;
+        }
+    } else {
+        if (highScoreElement) highScoreElement.textContent = `Hi: 0 (Bruin)`;
+        if (highLevelElement) highLevelElement.textContent = `Hi Lvl: 1`;
+    }
+}
+        function resetLeaderboard() {
             try {
                 localStorage.removeItem(LEADERBOARD_KEY);
                 leaderboard = [];
