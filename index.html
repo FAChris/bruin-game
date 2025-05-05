@@ -167,7 +167,18 @@
         function saveToLeaderboard() { try { const currentEntry = { name: playerName, score: score, level: level }; let playerIndex = leaderboard.findIndex(entry => entry.name === playerName); if (playerIndex !== -1) { if (score > leaderboard[playerIndex].score || (score === leaderboard[playerIndex].score && level > leaderboard[playerIndex].level)) { leaderboard[playerIndex] = currentEntry; } else { return; } } else { leaderboard.push(currentEntry); } leaderboard.sort((a, b) => b.score - a.score || b.level - a.level); leaderboard = leaderboard.slice(0, 5); localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard)); } catch (e) { console.error("LS Error (Save Leaderboard):", e); } finally { displayLeaderboard(); updateTopScoreDisplay(); } }
         function displayLeaderboard() { if (!leaderboardListElement) return; leaderboardListElement.innerHTML = ''; if (leaderboard.length === 0) { leaderboardListElement.innerHTML = '<li>No scores yet!</li>'; return; } leaderboard.forEach((entry, index) => { const li = document.createElement('li'); const safeName = entry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;"); li.innerHTML = `<span class="rank">${index + 1}.</span><span class="name">${safeName}</span><span class="score">${entry.score}</span><span class="level">(L${entry.level})</span>`; leaderboardListElement.appendChild(li); }); }
         function updateTopScoreDisplay() { if (leaderboard.length > 0) { const topEntry = leaderboard[0]; const safeName = topEntry.name.replace(/</g, "&lt;").replace(/>/g, "&gt;"); if(highScoreElement) highScoreElement.textContent = `Hi: ${topEntry.score} (${safeName})`; if(highLevelElement) highLevelElement.textContent = `Hi Lvl: ${topEntry.level}`; } else { if(highScoreElement) highScoreElement.textContent = `Hi: 0 (Bruin)`; if(highLevelElement) highLevelElement.textContent = `Hi Lvl: 1`; } }
-
+               function resetLeaderboard() {
+            try {
+                localStorage.removeItem(LEADERBOARD_KEY);
+                leaderboard = [];
+                displayLeaderboard();
+                updateTopScoreDisplay();
+                console.log("Leaderboard has been reset.");
+            } catch (e) {
+                console.error("Error resetting leaderboard:", e);
+            }
+        }
+        
         // --- Resize Canvas (unchanged) ---
         function resizeCanvas() { canvas.width = gameContainer.clientWidth; canvas.height = gameContainer.clientHeight; groundY = canvas.height - groundHeight - basePlayerHeight; if (player) { player.y = canvas.height - player.currentHeight - 10; player.x = Math.max(0, Math.min(canvas.width - player.currentWidth, player.x)); } if (!isGameOver) { drawGame(); } }
 
