@@ -8,7 +8,18 @@
     <style>
         /* --- CSS Styles (No changes needed here, but kept for completeness) --- */
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background-color: #ADD8E6; font-family: 'Press Start 2P', cursive; }
-        body { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; min-height: 100vh; padding: 1rem; box-sizing: border-box; touch-action: none; transition: background-color 1s ease; }
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    min-height: 100vh; /* Or leave it commented out if you did that */
+    /* padding: 1rem; */ /* Try commenting this out */
+    padding: 0; /* Or try padding: 0; */
+    box-sizing: border-box;
+    touch-action: none;
+    transition: background-color 1s ease;
+}     
         .intro-text { font-size: 0.9em; color: #333; margin-bottom: 1rem; text-align: center; flex-shrink: 0; width: 100%; }
         /* --- MODIFIED: Added outline: none for focus --- */
         .game-container { border: 5px solid #2774AE; position: relative; overflow: hidden; width: 100%; max-width: 600px; aspect-ratio: 3 / 4; border-radius: 15px; box-shadow: 0 6px 12px rgba(0,0,0,0.15); background-color: #F2A900; cursor: grab; margin-top: 0; flex-shrink: 1; min-height: 0; outline: none; /* Remove focus outline */ }
