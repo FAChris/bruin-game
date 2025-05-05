@@ -1,8 +1,10 @@
+// In netlify/functions/save-score.js
+
 const sqlite3 = require('sqlite3').verbose();
 const dbPath = '/tmp/leaderboard.db';
 const db = new sqlite3.Database(dbPath);
 
-const initializeDatabase = () => {
+const initializeDatabase = (callback) => {
   db.run(`
     CREATE TABLE IF NOT EXISTS scores (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -11,20 +13,8 @@ const initializeDatabase = () => {
       level INTEGER NOT NULL,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-  `);
+  `, callback); // Execute the callback when done
 };
-
-db.serialize(() => {
-  db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='scores'", (err, row) => {
-    if (err) {
-      console.error('Error checking for scores table:', err.message);
-    }
-    if (!row) {
-      console.log('Scores table does not exist, creating it.');
-      initializeDatabase();
-    }
-  });
-});
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -38,6 +28,29 @@ exports.handler = async (event) => {
     }
 
     await new Promise((resolve, reject) => {
+      db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='scores'", (err, row) => {
+        if (err) {
+          console.error('Error checking for scores table:', err.message);
+          reject(err);
+        }
+        if (!row) {
+          console.log('Scores table does not exist, creating it.');
+          initializeDatabase((err) => { // Call initialize and wait for it to complete
+            if (err) {
+              console.error('Error creating scores table:', err.message);
+              reject(err);
+            } else {
+              resolve(); // Proceed after table creation
+            }
+          });
+        } else {
+          resolve(); // Table exists, proceed
+        }
+      });
+    });
+
+    // Now, insert the score
+    const result = await new Promise((resolve, reject) => {
       db.run(`INSERT INTO scores (name, score, level) VALUES (?, ?, ?)`, [name, score, level], function(err) {
         if (err) {
           console.error('Error saving score:', err.message);
@@ -48,16 +61,7 @@ exports.handler = async (event) => {
       });
     });
 
-    const result = await new Promise((resolve, reject) => {
-      db.close((err) => {
-        if (err) {
-          console.error('Database close error:', err.message);
-          reject({ statusCode: 500, body: 'Error closing database.' });
-        } else {
-          resolve();
-        }
-      });
-    });
+    await new Promise((resolve) => db.close(resolve)); // Close the database
 
     return result;
 

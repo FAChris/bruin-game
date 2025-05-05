@@ -2,7 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const dbPath = '/tmp/leaderboard.db';
 const db = new sqlite3.Database(dbPath);
 
-const initializeDatabase = () => {
+const initializeDatabase = (callback) => {
   db.run(`
     CREATE TABLE IF NOT EXISTS scores (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -11,20 +11,8 @@ const initializeDatabase = () => {
       level INTEGER NOT NULL,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-  `);
+  `, callback);
 };
-
-db.serialize(() => {
-  db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='scores'", (err, row) => {
-    if (err) {
-      console.error('Error checking for scores table:', err.message);
-    }
-    if (!row) {
-      console.log('Scores table does not exist, creating it.');
-      initializeDatabase();
-    }
-  });
-});
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'GET') {
@@ -32,6 +20,28 @@ exports.handler = async (event) => {
   }
 
   try {
+    await new Promise((resolve, reject) => {
+      db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='scores'", (err, row) => {
+        if (err) {
+          console.error('Error checking for scores table:', err.message);
+          reject(err);
+        }
+        if (!row) {
+          console.log('Scores table does not exist, creating it.');
+          initializeDatabase((err) => {
+            if (err) {
+              console.error('Error creating scores table:', err.message);
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        } else {
+          resolve();
+        }
+      });
+    });
+
     const scores = await new Promise((resolve, reject) => {
       db.all(`SELECT name, score, level FROM scores ORDER BY score DESC, level DESC LIMIT 10`, [], (err, rows) => {
         if (err) {
@@ -43,16 +53,7 @@ exports.handler = async (event) => {
       });
     });
 
-    const closeResult = await new Promise((resolve, reject) => {
-      db.close((err) => {
-        if (err) {
-          console.error('Database close error:', err.message);
-          reject({ statusCode: 500, body: 'Error closing database.' });
-        } else {
-          resolve();
-        }
-      });
-    });
+    await new Promise((resolve) => db.close(resolve));
 
     return {
       statusCode: 200,
