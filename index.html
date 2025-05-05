@@ -181,7 +181,7 @@ function saveToLeaderboard() {
     }
     const scoreData = { name: playerName, score: score, level: level };
 
-    fetch('/api/scores', {
+    fetch('https://aquamarine-dieffenbachia-ed23a6.netlify.app/.netlify/functions/save-score', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -258,7 +258,7 @@ function saveToLeaderboard() {
         function gameLoop() { if (isGameOver) { cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } if (player) player.update(); handleItems(); if (isGameOver) { cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } handleParticles(); updateBonusRound(); passiveScoreTimer++; if (passiveScoreTimer >= passiveScoreInterval) { passiveScoreTimer = 0; let passiveScoreToAdd = 0; if (isPlayerSmall) { passiveScoreToAdd = smallPassiveScore; } else if (isPlayerBig) { passiveScoreToAdd = bigPassiveScore; } if (passiveScoreToAdd > 0) { score += passiveScoreToAdd; score = Math.max(0, score); scoreElement.textContent = `Score: ${score}`; checkLevelUp(); } } drawGame(); animationFrameId = requestAnimationFrame(gameLoop); }
         function gameOver() { if (isGameOver) return; isGameOver = true; console.log("Game Over Triggered"); cancelAnimationFrame(animationFrameId); animationFrameId = null; saveToLeaderboard(); messageElement.innerHTML = `Game Over!<br>Level: ${level} | Score: ${score}<br>Tap or Click to Play Again`; messageElement.style.display = 'block'; gameContainer.style.cursor = 'pointer'; playSound('gameOver'); }
         function loadRemoteLeaderboard() {
-    fetch('/api/scores')
+    fetch('https://aquamarine-dieffenbachia-ed23a6.netlify.app/.netlify/functions/get-scores')
         .then(response => response.json())
         .then(data => {
             leaderboard = data;
