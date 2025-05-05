@@ -321,6 +321,10 @@ function saveToLeaderboard() {
         startGameButton.addEventListener('touchstart', () => { playerName = playerNameInput.value.trim().substring(0, 15) || "Bruin"; nameInputOverlay.style.display = 'none'; initializeGame(); });
          // Allow Enter key in input field to start game (unchanged)
          playerNameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') { startGameButton.click(); } });
+        playerNameInput.addEventListener('touchstart', (e) => {
+  // On touchstart, focus the input to bring up the keyboard if it's not already visible
+  playerNameInput.focus();
+});
          // Allow restarting by clicking game over message (unchanged)
          messageElement.addEventListener('click', (e) => { e.stopPropagation(); if (isGameOver) { showNameInputScreen(); } });
         messageElement.addEventListener('touchstart', (e) => { e.stopPropagation(); if (isGameOver) { showNameInputScreen(); } });
