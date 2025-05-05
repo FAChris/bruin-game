@@ -292,35 +292,8 @@ function loadRemoteLeaderboard() {
         .then(data => {
             leaderboard = data;
             displayLeaderboard();
-
-            let personalHighScore = 0;
-            for (const entry of leaderboard) {
-                if (entry.name === playerName) {
-                    personalHighScore = Math.max(personalHighScore, entry.score);
-                }
-            }
-
-            if (leaderboard.length > 0 && personalHighScore === 0) {
-                // If leaderboard has entries but player's score wasn't found, use the top score
-                personalHighScore = leaderboard[0].score;
-            } else if (leaderboard.length === 0) {
-                personalHighScore = 0;
-            }
-
-            if (highScoreElement) {
-                highScoreElement.textContent = `Hi: ${personalHighScore} (${playerName})`;
-            }
-            if (highLevelElement && leaderboard.length > 0 && personalHighScore === leaderboard[0].score && leaderboard[0].name === playerName) {
-                highLevelElement.textContent = `Hi Lvl: ${leaderboard[0].level}`;
-            } else if (highLevelElement) {
-                let personalHighLevel = 1;
-                for (const entry of leaderboard) {
-                    if (entry.name === playerName && entry.score === personalHighScore) {
-                        personalHighLevel = Math.max(personalHighLevel, entry.level);
-                    }
-                }
-                highLevelElement.textContent = `Hi Lvl: ${personalHighLevel}`;
-            }
+            console.log("Leaderboard data received:", leaderboard); // ADD THIS LINE
+            updateTopScoreDisplay();
         })
         .catch(error => {
             console.error('Error fetching leaderboard:', error);
