@@ -14,13 +14,13 @@ export const handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  console.log("Attempting to fetch scores using FQL v10 (paginating index directly)..."); // Updated log
+  console.log("Attempting to fetch scores using FQL v10 (referencing index by name)..."); // Updated log
 
   try {
-    // --- CORRECTED QUERY v5: Paginating the index directly ---
+    // --- CORRECTED QUERY v6: Referencing the index directly by name ---
     const query = fql`
-      index('scores_sort_by_score_level_desc')
-        .paginate({ size: 10 })
+      scores_sort_by_score_level_desc // Use the index name directly
+        .paginate({ size: 10 })       // Paginate the results from the index
     `;
     // --- End Correction ---
 
@@ -47,8 +47,9 @@ export const handler = async (event) => {
   } catch (error) {
     console.error('Error fetching scores from Fauna:', error);
     const errorSummary = error.cause?.queryInfo?.summary ?? error.message ?? 'Failed to fetch scores.';
-    const errorMessage = error.message?.includes("instance not found") || error.message?.includes("invalid ref") // Added check for invalid ref too
-       ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found or not readable. Check index name and key permissions.`
+    // Check for specific errors like 'invalid ref' which might indicate the index name is wrong
+    const errorMessage = error.message?.includes("invalid ref")
+       ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found or name is incorrect. Check index name.`
        : errorSummary;
     return {
       statusCode: error.httpStatus ?? 500,
