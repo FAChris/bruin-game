@@ -5,24 +5,20 @@ const faunaSecret = process.env.FAUNA_SERVER_SECRET;
 
 // Check imports and secret
 if (!q || !Client) {
-  // Log error during initialization phase if possible
   console.error("Failed to import Fauna Client or query builder.");
-  // Cannot return from here easily, but function will fail later if needed
+  // Allow execution to continue, it will fail later if q is truly missing
 }
- if (!faunaSecret && process.env.NODE_ENV === 'production') { // Only hard fail in production
+ if (!faunaSecret && process.env.NODE_ENV === 'production') {
    console.error("FAUNA_SERVER_SECRET environment variable not set.");
    return { statusCode: 500, body: JSON.stringify({ error: "Configuration error."}) };
  }
- // Allow local development without env var potentially, but log warning
  if (!faunaSecret) {
      console.warn("FAUNA_SERVER_SECRET environment variable not set. Using placeholder or expecting failure.");
  }
 
-
 const client = new Client({
-  // Use a fallback empty secret if not set, query will fail but client init won't crash
-  secret: faunaSecret || "undefined", // Avoid passing undefined directly
-  // domain: 'db.us.fauna.com', // Still uncomment if needed
+  secret: faunaSecret || "undefined_secret", // Use placeholder if missing
+  // domain: 'db.us.fauna.com', // Still uncomment if needed for US region
   // scheme: 'https',
 });
 
@@ -34,23 +30,26 @@ module.exports.handler = async (event) => {
 
      console.log("Attempting to fetch scores using FQL 'q' builder syntax (require)...");
 
-     // Double-check secret existence *inside* handler for safety
      if (!faunaSecret) {
           console.error("FAUNA_SERVER_SECRET missing inside handler.");
           return { statusCode: 500, body: JSON.stringify({ error: "Server configuration error."}) };
      }
-
+     // Add check if q was imported correctly
+      if (!q) {
+          console.error("Fauna query builder ('q') is not available.");
+          return { statusCode: 500, body: JSON.stringify({ error: "Server setup error."}) };
+      }
 
      try {
          // --- Query using 'q' builder syntax ---
          const query = q.Map(
              q.Paginate(
-                 q.Match(q.Index("scores_sort_by_score_level_desc")),
+                 q.Match(q.Index("scores_sort_by_score_level_desc")), // Ensure Index name is correct!
                  { size: 10 }
              ),
              q.Lambda(
-                 ['score', 'level', 'name'],
-                 {
+                 ['score', 'level', 'name'], // Vars for values from index
+                 {                          // Object to return
                      name: q.Var('name'),
                      score: q.Var('score'),
                      level: q.Var('level')
@@ -66,7 +65,7 @@ module.exports.handler = async (event) => {
          return {
              statusCode: 200,
              headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify(response.data ?? []),
+             body: JSON.stringify(response.data ?? []), // q.Map returns { data: [...] }
          };
 
      } catch (error) {
@@ -80,5 +79,4 @@ module.exports.handler = async (event) => {
            body: JSON.stringify({ error: errorMessage }),
          };
      }
-     // No finally/close needed usually
 };
