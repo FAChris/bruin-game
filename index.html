@@ -284,10 +284,11 @@
         let passiveScoreTimer = 0;
         let notificationTimeoutId = null;
 
-        // --- Constants ---
-        const LEADERBOARD_KEY = 'bruinCatchLeaderboard_v2'; // Local storage fallback key
-        const NETLIFY_SAVE_SCORE_URL = 'https://aquamarine-dieffenbachia-ed23a6.netlify.app/.netlify/functions/save-score';
-        const NETLIFY_GET_SCORES_URL = 'https://aquamarine-dieffenbachia-ed23a6.netlify.app/.netlify/functions/get-scores';
+// --- Constants ---
+const LEADERBOARD_KEY = 'bruinCatchLeaderboard_v2'; // Local storage fallback key
+// Correct paths for deployed Netlify functions
+const NETLIFY_SAVE_SCORE_URL = '/.netlify/functions/save-score';
+const NETLIFY_GET_SCORES_URL = '/.netlify/functions/get-scores';
 
         // Leveling
         const levelThresholds = [100, 250, 500, 800, 1200, 2000, 3000, 4000, 5500]; // Score needed for next level
