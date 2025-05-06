@@ -14,12 +14,13 @@ exports.handler = async (event) => {
     };
   }
 
-  // Create FaunaDB client
+// Create FaunaDB client
   const client = new faunadb.Client({
     secret: process.env.FAUNA_SERVER_SECRET,
-    // Use the correct domain for your Fauna region if not Classic
-    // domain: 'db.us.fauna.com', // or 'db.eu.fauna.com', 'db.classic.fauna.com'
-    // scheme: 'https', // Use https
+    // --- MODIFIED: Specify US domain ---
+    domain: 'db.us.fauna.com', // Set domain for US region (UNCOMMENTED)
+    scheme: 'https',           // Ensure HTTPS is used (UNCOMMENTED)
+    // --- End Modification ---
   });
 
   if (event.httpMethod !== 'GET') {
