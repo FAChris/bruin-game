@@ -14,27 +14,29 @@ export const handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  console.log("Attempting to fetch scores using FQL v10 (referencing index by name)..."); // Updated log
+  console.log("Attempting to fetch scores using FQL v10 (Paginate/Match/Index)..."); // Simplified log
 
   try {
-    // --- CORRECTED QUERY v6: Referencing the index directly by name ---
+    // --- FQL Query using Paginate(Match(Index("..."))) ---
+    // Ensure index name is EXACTLY "scores_sort_by_score_level_desc"
     const query = fql`
-      scores_sort_by_score_level_desc // Use the index name directly
-        .paginate({ size: 10 })       // Paginate the results from the index
+      Paginate(
+        Match(
+          Index("scores_sort_by_score_level_desc")
+        ),
+        { size: 10 }
+      )
     `;
-    // --- End Correction ---
+    // --- End Query ---
 
-    // Execute the query
     const response = await client.query(query);
-    // response.data should still contain { data: [ [score, level, name], ... ] }
+    // response.data = { data: [ [score, level, name], ... ] }
 
-    // --- Map the results (Keep this) ---
     const scores = response.data?.data?.map(([score, level, name]) => ({
         name: name,
         score: score,
         level: level
     })) ?? [];
-    // --- End Mapping ---
 
     console.log(`Successfully fetched ${scores.length} scores.`);
 
@@ -47,7 +49,6 @@ export const handler = async (event) => {
   } catch (error) {
     console.error('Error fetching scores from Fauna:', error);
     const errorSummary = error.cause?.queryInfo?.summary ?? error.message ?? 'Failed to fetch scores.';
-    // Check for specific errors like 'invalid ref' which might indicate the index name is wrong
     const errorMessage = error.message?.includes("invalid ref")
        ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found or name is incorrect. Check index name.`
        : errorSummary;
