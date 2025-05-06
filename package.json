@@ -1,6 +1,7 @@
 {
   "name": "bruin-catch-server",
   "version": "1.0.0",
+  "type": "module",
   "description": "Backend server for Bruin Catch leaderboard",
   "main": "server.js",
   "scripts": {
