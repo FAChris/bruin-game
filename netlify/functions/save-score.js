@@ -1,123 +1,173 @@
-// functions/save-score/save-score.js
-
-// --- Try requiring 'fauna' and accessing properties like the old 'faunadb' package ---
-let q, Client;
-let importError = null;
-try {
-    // Try to require the package named 'fauna' installed by npm
-    const faunadbPackage = require('fauna');
-
-    // Check if it has the expected properties of the older driver structure
-    if (faunadbPackage && faunadbPackage.query && faunadbPackage.Client) {
-        q = faunadbPackage.query;        // Assign the query builder
-        Client = faunadbPackage.Client;   // Assign the Client constructor
-        console.log("Successfully accessed Client and query from required 'fauna' package (save-score).");
-    } else {
-        importError = "Required 'fauna' package does not have expected '.query' or '.Client' properties.";
-        console.error(importError);
-    }
-} catch (e) {
-    // Handle case where require('fauna') itself fails
-    importError = `FATAL: require('fauna') failed in save-score. Error: ${e.message}`;
-    console.error(importError);
-    // Ensure q and Client are null/undefined so handler fails safely
-    q = null;
-    Client = null;
-}
+// netlify/functions/save-score.js
+const faunadb = require('faunadb');
 
 const faunaSecret = process.env.FAUNA_SERVER_SECRET;
-if (!faunaSecret) { console.warn("FAUNA_SERVER_SECRET env var not set."); }
+if (!faunaSecret) {
+    console.error("Fauna secret not found.");
+    return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "Server configuration error." }),
+    };
+}
 
-// Initialize client only if Client object was successfully imported
-const client = Client ? new Client({
-  secret: faunaSecret || "undefined_secret", // Use placeholder if missing
-  domain: 'db.us.fauna.com',                 // Make sure this is uncommented for US region
-  scheme: 'https',                           // Make sure this is uncommented
-}) : null;
+const q = faunadb.query;
+const client = new faunadb.Client({ secret: faunaSecret });
 
-if (Client && !client) { console.error("Client object exists but constructor failed? (save-score)"); }
-else if (!Client) { console.error("Client constructor is undefined/falsy (save-score)."); }
+// Basic input validation function (enhance as needed)
+function isValidScoreData(data) {
+    if (!data || typeof data !== 'object') return false;
+    const { name, score, level } = data;
 
-
-// --- Handler ---
-module.exports.handler = async (event) => {
-    // Check for import/setup errors inside handler
-    if (importError || !q || !client) {
-         console.error("Fauna query builder or client not available inside handler (save-score). Import error:", importError);
-         return { statusCode: 500, body: JSON.stringify({ error: "Server setup error."}) };
+    // Name: string, not empty, reasonable length
+    if (typeof name !== 'string' || name.trim().length === 0 || name.length > 25) {
+         console.warn("Validation failed: Invalid name", name);
+         return false;
     }
-    // Check for secret inside handler
-    if (!faunaSecret) {
-         console.error("FAUNA_SERVER_SECRET missing inside handler (save-score).");
-         return { statusCode: 500, body: JSON.stringify({ error: "Server configuration error."}) };
+    // Score: positive integer, reasonable max (e.g., less than 1 million?)
+    if (typeof score !== 'number' || !Number.isInteger(score) || score < 0 || score > 999999) {
+         console.warn("Validation failed: Invalid score", score);
+        return false;
+    }
+    // Level: positive integer, reasonable max (e.g., less than 100?)
+    if (typeof level !== 'number' || !Number.isInteger(level) || level <= 0 || level > 99) {
+         console.warn("Validation failed: Invalid level", level);
+        return false;
     }
 
-    // Handle POST request
-    if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
-    }
+    // Add more checks? Profanity filter for name? Check against impossible score progression?
+    return true;
+}
 
-    try {
-        const body = JSON.parse(event.body);
-        const { name, score, level } = body;
+// Sanitize name slightly more (still basic)
+function sanitizeName(name) {
+   return name.replace(/[^a-zA-Z0-9 _-]/g, '').trim().substring(0, 15); // Allow letters, numbers, space, underscore, hyphen
+}
 
-        // Basic Server-Side Validation
-        if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 15) {
-          return { statusCode: 400, body: JSON.stringify({ error: 'Invalid player name.'}) };
-        }
-        if (typeof score !== 'number' || score < 0 || !Number.isInteger(score)) {
-           return { statusCode: 400, body: JSON.stringify({ error: 'Invalid score.'}) };
-        }
-         if (typeof level !== 'number' || level < 1 || !Number.isInteger(level)) {
-           return { statusCode: 400, body: JSON.stringify({ error: 'Invalid level.'}) };
-        }
-        const trimmedName = name.trim();
 
-        console.log(`Attempting to save score for ${trimmedName} using FQL 'q' builder...`);
+exports.handler = async (event, context) => {
+  // Handle CORS Preflight request
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204, // No Content
+      headers: {
+        'Access-Control-Allow-Origin': '*', // Adjust for production
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS' // Allow POST and OPTIONS
+      },
+      body: ''
+    };
+  }
 
-        // --- Query using 'q' builder syntax ---
-        // This simply creates a new score document every time
-        const query = q.Create(
-            q.Collection('scores'), // Target the 'scores' collection
-            {
-              data: { // The document data
-                name: trimmedName,
-                score: score,
-                level: level,
-              },
-            }
+  // Handle POST request
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405, // Method Not Allowed
+      headers: { 'Allow': 'POST, OPTIONS' },
+      body: 'Method Not Allowed'
+    };
+  }
+
+  console.log("Function 'save-score' invoked.");
+
+  let scoreData;
+  try {
+      scoreData = JSON.parse(event.body);
+      console.log("Received data:", scoreData);
+  } catch (error) {
+      console.error("Error parsing request body:", error);
+      return {
+          statusCode: 400, // Bad Request
+          headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({ error: 'Invalid request body. Expected JSON.' }),
+      };
+  }
+
+  // --- SERVER-SIDE VALIDATION ---
+  if (!isValidScoreData(scoreData)) {
+      console.warn("Invalid score data received:", scoreData);
+      return {
+          statusCode: 400, // Bad Request
+           headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({ error: 'Invalid score data provided.' }),
+      };
+  }
+
+  // Sanitize name after validation passes basic checks
+  const cleanName = sanitizeName(scoreData.name);
+  const scoreToSave = {
+      name: cleanName,
+      score: scoreData.score,
+      level: scoreData.level,
+      // You could add a timestamp too:
+      // createdAt: q.Now()
+  };
+
+  console.log("Attempting to save validated data:", scoreToSave);
+
+  try {
+      // --- Logic to potentially update existing score ---
+      // 1. Try to find an existing entry for this player name
+      // Note: This requires an index on the 'name' field for efficiency.
+      // Let's create one quickly: Go to Fauna -> Indexes -> New Index
+      // Name: `leaderboard_by_name`, Source Collection: `leaderboard`, Terms: `data.name` (Unique checked recommended), Values: `ref`
+      const existingEntry = await client.query(
+          q.Map(
+              q.Paginate(q.Match(q.Index('leaderboard_by_name'), scoreToSave.name)),
+              q.Lambda('ref', q.Get(q.Var('ref')))
+          )
+      ).catch(err => {
+         // If index doesn't exist or other error, log it but maybe proceed to create
+         console.warn("Could not check for existing entry by name (maybe index missing?):", err.message);
+         return null; // Indicate we couldn't check reliably
+      });
+
+
+      let savedEntry;
+      // Check if we found *exactly one* existing entry
+      if (existingEntry && existingEntry.data && existingEntry.data.length === 1) {
+          const docRef = existingEntry.data[0].ref;
+          const currentData = existingEntry.data[0].data;
+          console.log(`Found existing entry for ${scoreToSave.name} with score ${currentData.score}, level ${currentData.level}`);
+
+          // Only update if the new score is better (higher score, or same score & higher level)
+          if (scoreToSave.score > currentData.score || (scoreToSave.score === currentData.score && scoreToSave.level > currentData.level)) {
+              console.log("New score is better. Updating...");
+              savedEntry = await client.query(
+                  q.Update(docRef, { data: scoreToSave })
+              );
+          } else {
+              console.log("New score is not better. Skipping update.");
+              savedEntry = existingEntry.data[0]; // Return the existing data as if saved
+          }
+      } else {
+           if (existingEntry && existingEntry.data && existingEntry.data.length > 1) {
+              console.warn(`Found multiple entries for player ${scoreToSave.name}. This shouldn't happen with a unique index. Saving as new.`);
+           } else {
+               console.log(`No existing entry found for ${scoreToSave.name}. Creating new one.`);
+           }
+           // Create a new entry if none found or check failed
+          savedEntry = await client.query(
+              q.Create(q.Collection('leaderboard'), { data: scoreToSave })
           );
-        // --- End Query ---
+      }
 
-        // Execute the query
-        const response = await client.query(query);
-        // response contains { ref, ts, data } for the created document
+      console.log("Score saved/updated successfully:", savedEntry.ref.id);
 
-        console.log(`Score saved successfully for ${trimmedName}. Doc Ref: ${response.ref.id}`);
-
-        return {
-          statusCode: 201, // 201 Created
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: 'Score saved successfully!',
-            id: response.ref.id, // Send back the ID of the created doc
-            name: trimmedName,
-            score,
-            level
-          }),
-        };
-
-    } catch (error) {
-        console.error("Error saving score to Fauna (using 'q' builder):", error);
-        const errorDescription = error.description ?? error.message ?? 'Failed to save score.';
-        // Check for specific errors like collection not found
-        const errorMessage = error.message?.includes("invalid ref")
-          ? `Failed to save score. Collection 'scores' not found? Check name in Fauna dashboard.`
-          : errorDescription;
-        return {
-          statusCode: error.requestResult?.statusCode ?? 500, // Get status code from Fauna error if possible
-          body: JSON.stringify({ error: errorMessage }),
-        };
-    }
-    // No finally/close needed usually
+      return {
+          statusCode: 200, // Or 201 Created if you distinguish
+          headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*' // Adjust for production
+          },
+          body: JSON.stringify({ success: true, id: savedEntry.ref.id }),
+      };
+  } catch (error) {
+      console.error("Error saving score to Fauna:", error);
+      // Check for specific Fauna errors if needed (e.g., unique constraint violation)
+      return {
+          statusCode: 500,
+           headers: { 'Access-Control-Allow-Origin': '*' },
+          body: JSON.stringify({ error: 'Failed to save score.' }),
+      };
+  }
 };

@@ -1,104 +1,137 @@
-// functions/get-scores/get-scores.js
+// netlify/functions/get-scores.js
+const faunadb = require('faunadb');
 
-// --- Try requiring 'fauna' and accessing properties like the old 'faunadb' package ---
-let q, Client;
-let importError = null;
-try {
-    // Try to require the package named 'fauna' installed by npm
-    const faunadbPackage = require('fauna');
-
-    // Check if it has the expected properties of the older driver structure
-    if (faunadbPackage && faunadbPackage.query && faunadbPackage.Client) {
-        q = faunadbPackage.query;        // Assign the query builder
-        Client = faunadbPackage.Client;   // Assign the Client constructor
-        console.log("Successfully accessed Client and query from required 'fauna' package (get-scores).");
-    } else {
-        importError = "Required 'fauna' package does not have expected '.query' or '.Client' properties.";
-        console.error(importError);
-    }
-} catch (e) {
-    // Handle case where require('fauna') itself fails
-    importError = `FATAL: require('fauna') failed in get-scores. Error: ${e.message}`;
-    console.error(importError);
-    // Ensure q and Client are null/undefined so handler fails safely
-    q = null;
-    Client = null;
+// Securely access your Fauna API key from Netlify environment variables
+// DO NOT HARDCODE THE KEY HERE!
+const faunaSecret = process.env.FAUNA_SERVER_SECRET;
+if (!faunaSecret) {
+    console.error("Fauna secret not found in environment variables.");
+    return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "Server configuration error." }),
+    };
 }
 
-const faunaSecret = process.env.FAUNA_SERVER_SECRET;
-if (!faunaSecret) { console.warn("FAUNA_SERVER_SECRET env var not set."); }
+const q = faunadb.query;
+const client = new faunadb.Client({ secret: faunaSecret });
 
-// Initialize client only if Client object was successfully imported
-const client = Client ? new Client({
-  secret: faunaSecret || "undefined_secret", // Use placeholder if missing
-  domain: 'db.us.fauna.com',                 // Make sure this is uncommented for US region
-  scheme: 'https',                           // Make sure this is uncommented
-}) : null;
-
-if (Client && !client) { console.error("Client object exists but constructor failed? (get-scores)"); }
-else if (!Client) { console.error("Client constructor is undefined/falsy (get-scores)."); }
-
-// --- Handler ---
-module.exports.handler = async (event) => {
-    // Check for import/setup errors inside handler
-    if (importError || !q || !client) {
-         console.error("Fauna query builder or client not available inside handler (get-scores). Import error:", importError);
-         return { statusCode: 500, body: JSON.stringify({ error: "Server setup error."}) };
-    }
-    // Check for secret inside handler
-    if (!faunaSecret) {
-         console.error("FAUNA_SERVER_SECRET missing inside handler (get-scores).");
-         return { statusCode: 500, body: JSON.stringify({ error: "Server configuration error."}) };
-    }
-
-    // Handle GET request
-    if (event.httpMethod !== 'GET') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
-    }
-
-    console.log("Attempting to fetch scores using FQL 'q' builder syntax (require)...");
+exports.handler = async (event, context) => {
+    console.log("Function 'get-scores' invoked.");
 
     try {
-        // --- Query using 'q' builder syntax ---
-        const query = q.Map(
-            q.Paginate(
-                q.Match(q.Index("scores_sort_by_score_level_desc")), // Ensure Index name is correct
-                { size: 10 } // Limit to top 10
-            ),
-            q.Lambda(
-                ['score', 'level', 'name'], // Variables for the values returned by the index
-                {                          // Object to return for each result
-                    name: q.Var('name'),
-                    score: q.Var('score'),
-                    level: q.Var('level')
-                }
+        const response = await client.query(
+            // Paginate retrieves data using an index
+            q.Map(
+                q.Paginate(
+                    q.Match(q.Index('scores_by_score_desc')), // Use the index you created
+                    { size: 10 } // Get the top 10 scores (adjust as needed)
+                ),
+                // For each result [score, level, name, ref], return an object
+                q.Lambda(
+                    ['score', 'level', 'name', 'ref'], // Match the order defined in the index Values
+                    {
+                        name: q.Var('name'),
+                        score: q.Var('score'),
+                        level: q.Var('level'),
+                    }
+                )
             )
         );
-        // --- End Query ---
 
-        // Execute the query
-        const response = await client.query(query);
-        // response.data should be the array of mapped objects: [ { name: ..., score: ..., level: ... }, ... ]
+        // The result is nested under 'data'
+        const scores = response.data;
 
-        console.log(`Successfully fetched ${response.data?.length ?? 0} scores.`);
+        console.log(`${scores.length} scores retrieved successfully.`);
 
         return {
             statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(response.data ?? []), // Return the scores array
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*', // Allow requests from any origin (adjust if needed for security)
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'GET, OPTIONS'
+            },
+            body: JSON.stringify(scores),
         };
-
     } catch (error) {
-        console.error("Error fetching scores from Fauna (using 'q' builder):", error);
-        const errorDescription = error.description ?? error.message ?? 'Failed to fetch scores.';
-        // Check for specific errors like index not found
-        const errorMessage = error.message?.includes("invalid ref")
-          ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found? Check name in Fauna dashboard.`
-          : errorDescription;
+        console.error("Error fetching scores from Fauna:", error);
         return {
-          statusCode: error.requestResult?.statusCode ?? 500, // Get status code from Fauna error if possible
-          body: JSON.stringify({ error: errorMessage }),
+            statusCode: 500,
+             headers: { // Add headers even for errors for CORS preflight
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'GET, OPTIONS'
+             },
+            body: JSON.stringify({ error: 'Failed to fetch scores.' }),
         };
     }
-    // No finally/close needed usually
+};
+
+// Handle OPTIONS request for CORS preflight
+exports.handler = async (event, context) => {
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 204, // No Content
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' // Add POST here
+      },
+      body: ''
+    };
+  }
+  // If not OPTIONS, proceed with the GET or POST logic from above/below
+  // Combine the GET logic here if doing both in one file,
+  // or separate into get-scores.js and save-score.js
+   if (event.httpMethod === 'GET') {
+       // ... (paste the GET logic from above here) ...
+        console.log("Function 'get-scores' invoked.");
+
+        try {
+            const response = await client.query(
+                q.Map(
+                    q.Paginate(
+                        q.Match(q.Index('scores_by_score_desc')),
+                        { size: 10 }
+                    ),
+                    q.Lambda(
+                        ['score', 'level', 'name', 'ref'],
+                        {
+                            name: q.Var('name'),
+                            score: q.Var('score'),
+                            level: q.Var('level'),
+                        }
+                    )
+                )
+            );
+
+            const scores = response.data;
+            console.log(`${scores.length} scores retrieved successfully.`);
+
+            return {
+                statusCode: 200,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                     'Access-Control-Allow-Headers': 'Content-Type', // Needed?
+                     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' // Needed?
+                },
+                body: JSON.stringify(scores),
+            };
+        } catch (error) {
+            console.error("Error fetching scores from Fauna:", error);
+            return {
+                statusCode: 500,
+                headers: {
+                   'Access-Control-Allow-Origin': '*',
+                   'Access-Control-Allow-Headers': 'Content-Type', // Needed?
+                   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' // Needed?
+                },
+                body: JSON.stringify({ error: 'Failed to fetch scores.' }),
+            };
+        }
+   } else {
+       // Handle other methods or return error
+        return { statusCode: 405, body: 'Method Not Allowed' };
+   }
 };

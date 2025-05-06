@@ -7,8 +7,6 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.17.1",
-    "fauna": "^2.5.0",
-    "sqlite3": "^5.1.7"
+    "faunadb": "^4.8.2"
   }
 }
