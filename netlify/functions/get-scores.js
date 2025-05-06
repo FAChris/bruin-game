@@ -1,55 +1,57 @@
 // functions/get-scores/get-scores.js
-const faunadb = require('faunadb');
-const q = faunadb.query;
+import { Client, fql } from 'fauna'; // Use new import style
 
-exports.handler = async (event) => {
-  // ... (secret check, client setup - keep domain/scheme if needed) ...
-  const client = new faunadb.Client({ /* ... */ });
+// --- IMPORTANT: Environment Variable Check ---
+// Ensure FAUNA_SERVER_SECRET is set in your Netlify environment!
+const faunaSecret = process.env.FAUNA_SERVER_SECRET;
+if (!faunaSecret) {
+  throw new Error("FAUNA_SERVER_SECRET environment variable not set.");
+}
+// --- Client Setup ---
+// Automatically handles region based on secret, usually no need for domain/scheme
+const client = new Client({
+  secret: faunaSecret,
+});
 
-  if (event.httpMethod !== 'GET') { /* ... */ }
+export const handler = async (event) => {
+  if (event.httpMethod !== 'GET') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
+  }
+
+  console.log("Attempting to fetch scores using FQL v10...");
 
   try {
-    // FQL v10 style query using the index
-    // The index returns [score, level, name]
-    // We use Map/Lambda still, but ensure structure matches index values
-    const result = await client.query(
-      q.Map(
-        q.Paginate(
-          q.Match(q.Index('scores_sort_by_score_level_desc')),
-          { size: 10 }
-        ),
-        q.Lambda(
-          ['score', 'level', 'name'], // Matches the order defined in index values
-          { // Construct the object we want
-            name: q.Var('name'),
-            score: q.Var('score'),
-            level: q.Var('level'),
-          }
-        )
-      )
-    );
-    // Check if the result structure is as expected (v10 might differ slightly)
-     // The driver should abstract this, result.data is common
-    const scores = result.data || [];
+    // FQL v10 Query - fetch top 10 sorted by score, then level
+    const query = fql`
+      scores.all().orderBy(.score ~ "desc", .level ~ "desc").map(s => ({
+        name: s.name,
+        score: s.score,
+        level: s.level
+      })).first(10)
+    `;
 
-    console.log(`Successfully fetched ${scores.length} scores (v10).`);
+    // Execute the query
+    const response = await client.query(query);
+
+    console.log(`Successfully fetched ${response.data?.length ?? 0} scores.`);
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(scores),
+      // response.data should already be the array of objects
+      body: JSON.stringify(response.data ?? []),
     };
+
   } catch (error) {
-    // ... (existing error handling) ...
-    console.error('Error fetching scores from FaunaDB (v10 attempt):', error);
-     let errorMsg = 'Failed to fetch scores.';
-     if (error.requestResult && error.requestResult.responseContent && error.requestResult.responseContent.errors) {
-       errorMsg = error.requestResult.responseContent.errors[0].description || errorMsg;
-     } else if (error.message) {
-       errorMsg = error.message;
-     }
-     return {
-       statusCode: error.requestResult?.statusCode || 500, // Use Fauna status code if available
-       body: JSON.stringify({ error: errorMsg }),
-     };
+    console.error('Error fetching scores from Fauna:', error);
+    // Extract more specific error message if available
+    const errorMessage = error.cause?.queryInfo?.summary ?? error.message ?? 'Failed to fetch scores.';
+    return {
+      statusCode: error.httpStatus ?? 500, // Use Fauna's status code if available
+      body: JSON.stringify({ error: errorMessage }),
+    };
+  } finally {
+    // Optional: Close client if needed, though usually managed automatically
+    // client.close();
   }
 };
