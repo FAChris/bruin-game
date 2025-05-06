@@ -14,15 +14,13 @@ export const handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  console.log("Attempting to fetch scores using FQL v10 (lowercase functions)..."); // Updated log
+  console.log("Attempting to fetch scores using FQL v10 (paginate(index('...')))..."); // Updated log
 
   try {
-    // --- CORRECTED QUERY v8: Using lowercase functions paginate(match(index("..."))) ---
+    // --- CORRECTED QUERY v9: Paginating the index directly ---
     const query = fql`
       paginate(
-        match(
-          index("scores_sort_by_score_level_desc") // lowercase 'index'
-        ),
+        index("scores_sort_by_score_level_desc"), // Use index("...") directly
         { size: 10 }
       )
     `;
@@ -30,7 +28,7 @@ export const handler = async (event) => {
 
     // Execute the query
     const response = await client.query(query);
-    // response.data = { data: [ [score, level, name], ... ] }
+    // response.data should still contain { data: [ [score, level, name], ... ] }
 
     // --- Map the results (Keep this) ---
     const scores = response.data?.data?.map(([score, level, name]) => ({
@@ -50,10 +48,9 @@ export const handler = async (event) => {
 
   } catch (error) {
     console.error('Error fetching scores from Fauna:', error);
-    // Check if the error message indicates the index itself wasn't found
     const errorSummary = error.cause?.queryInfo?.summary ?? error.message ?? 'Failed to fetch scores.';
-    const errorMessage = error.message?.includes("invalid ref") || errorSummary.includes("Index") // Check summary too
-       ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found or name is incorrect. Double-check index name in Fauna dashboard.`
+    const errorMessage = error.message?.includes("invalid ref")
+       ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found or name is incorrect. Check index name.`
        : errorSummary;
     return {
       statusCode: error.httpStatus ?? 500,
