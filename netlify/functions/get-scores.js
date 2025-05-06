@@ -14,12 +14,12 @@ export const handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  console.log("Attempting to fetch scores using FQL v10 (querying index, chained paginate)..."); // Updated log
+  console.log("Attempting to fetch scores using FQL v10 (paginating index directly)..."); // Updated log
 
   try {
-    // --- CORRECTED QUERY v4: Using method chaining for paginate ---
+    // --- CORRECTED QUERY v5: Paginating the index directly ---
     const query = fql`
-      match(index('scores_sort_by_score_level_desc'))
+      index('scores_sort_by_score_level_desc')
         .paginate({ size: 10 })
     `;
     // --- End Correction ---
@@ -28,7 +28,7 @@ export const handler = async (event) => {
     const response = await client.query(query);
     // response.data should still contain { data: [ [score, level, name], ... ] }
 
-    // --- Map the results from arrays to objects in JavaScript (Keep this) ---
+    // --- Map the results (Keep this) ---
     const scores = response.data?.data?.map(([score, level, name]) => ({
         name: name,
         score: score,
@@ -47,7 +47,7 @@ export const handler = async (event) => {
   } catch (error) {
     console.error('Error fetching scores from Fauna:', error);
     const errorSummary = error.cause?.queryInfo?.summary ?? error.message ?? 'Failed to fetch scores.';
-    const errorMessage = error.message?.includes("instance not found")
+    const errorMessage = error.message?.includes("instance not found") || error.message?.includes("invalid ref") // Added check for invalid ref too
        ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found or not readable. Check index name and key permissions.`
        : errorSummary;
     return {
