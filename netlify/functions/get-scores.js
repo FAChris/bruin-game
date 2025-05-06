@@ -14,29 +14,31 @@ export const handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
-  console.log("Attempting to fetch scores using FQL v10 (Paginate/Match/Index)..."); // Simplified log
+  console.log("Attempting to fetch scores using FQL v10 (lowercase functions)..."); // Updated log
 
   try {
-    // --- FQL Query using Paginate(Match(Index("..."))) ---
-    // Ensure index name is EXACTLY "scores_sort_by_score_level_desc"
+    // --- CORRECTED QUERY v8: Using lowercase functions paginate(match(index("..."))) ---
     const query = fql`
-      Paginate(
-        Match(
-          Index("scores_sort_by_score_level_desc")
+      paginate(
+        match(
+          index("scores_sort_by_score_level_desc") // lowercase 'index'
         ),
         { size: 10 }
       )
     `;
-    // --- End Query ---
+    // --- End Correction ---
 
+    // Execute the query
     const response = await client.query(query);
     // response.data = { data: [ [score, level, name], ... ] }
 
+    // --- Map the results (Keep this) ---
     const scores = response.data?.data?.map(([score, level, name]) => ({
         name: name,
         score: score,
         level: level
     })) ?? [];
+    // --- End Mapping ---
 
     console.log(`Successfully fetched ${scores.length} scores.`);
 
@@ -48,9 +50,10 @@ export const handler = async (event) => {
 
   } catch (error) {
     console.error('Error fetching scores from Fauna:', error);
+    // Check if the error message indicates the index itself wasn't found
     const errorSummary = error.cause?.queryInfo?.summary ?? error.message ?? 'Failed to fetch scores.';
-    const errorMessage = error.message?.includes("invalid ref")
-       ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found or name is incorrect. Check index name.`
+    const errorMessage = error.message?.includes("invalid ref") || errorSummary.includes("Index") // Check summary too
+       ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found or name is incorrect. Double-check index name in Fauna dashboard.`
        : errorSummary;
     return {
       statusCode: error.httpStatus ?? 500,
