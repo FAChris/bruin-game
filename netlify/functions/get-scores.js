@@ -1,68 +1,46 @@
 // functions/get-scores/get-scores.js
-import { Client, fql } from 'fauna';
+const { Client, query: q } = require('fauna'); // Use require
 
 const faunaSecret = process.env.FAUNA_SERVER_SECRET;
-if (!faunaSecret) {
-  console.error("FAUNA_SERVER_SECRET environment variable not set during function init.");
-}
+if (!q || !Client) { console.error("Fauna Client/Query failed import"); }
+if (!faunaSecret) { console.warn("FAUNA_SERVER_SECRET not set"); }
+
 const client = new Client({
-  secret: faunaSecret || "MISSING_SECRET",
-  domain: 'db.us.fauna.com', // Keep uncommented if needed
-  scheme: 'https',
+  secret: faunaSecret || "undefined_secret",
+  domain: 'db.us.fauna.com', // Make sure this is uncommented for US region
+  scheme: 'https',           // Make sure this is uncommented
 });
 
-export const handler = async (event) => {
-  if (event.httpMethod !== 'GET') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
-  }
+module.exports.handler = async (event) => {
+     if (event.httpMethod !== 'GET') { return { statusCode: 405, body: 'Method Not Allowed' }; }
+     if (!faunaSecret) { return { statusCode: 500, body: JSON.stringify({ error: "Server configuration error."}) }; }
+     if (!q) { return { statusCode: 500, body: JSON.stringify({ error: "Server setup error (q missing)." }) }; }
 
-  // Check secret again inside handler
-  if (!faunaSecret) {
-       console.error("FAUNA_SERVER_SECRET missing inside handler execution.");
-       return { statusCode: 500, body: JSON.stringify({ error: "Server configuration error."}) };
-  }
+     console.log("Attempting to fetch scores using FQL 'q' builder syntax (require)...");
 
-  console.log("Attempting to fetch scores using FQL v10 (match.map.take)..."); // Updated log
-
-  try {
-    // --- CORRECTED QUERY v12: Using .take(10) instead of .paginate({...}) ---
-    const query = fql`
-      match(index("scores_sort_by_score_level_desc"))
-        .map(row => ({ // Map the raw [score, level, name] array
-          score: row[0],
-          level: row[1],
-          name: row[2]
-        }))
-        .take(10) // Limit to the first 10 results from the mapped set
-    `;
-    // --- End Correction ---
-
-    // Execute the query
-    const response = await client.query(query);
-    // The result of .take(10) should be the array directly { data: [ {obj1}, {obj2}... ] }
-
-    const scores = response.data ?? []; // Default to empty array
-
-    console.log(`Successfully fetched ${scores.length} scores.`);
-
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(scores), // Return the array of score objects
-    };
-
-  } catch (error) {
-    console.error('Error fetching scores from Fauna (match.map.take attempt):', error);
-    const errorSummary = error.cause?.queryInfo?.summary ?? error.message ?? 'Failed to fetch scores.';
-    const errorMessage = error.message?.includes("invalid ref") || errorSummary.includes("index") || errorSummary.includes("Index")
-       ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found, name incorrect, or issue with query structure. Check index & query.`
-       : errorSummary;
-    const statusCode = error.httpStatus ?? error.requestResult?.statusCode ?? 500;
-    return {
-      statusCode: statusCode,
-      body: JSON.stringify({ error: errorMessage }),
-    };
-  } finally {
-    // client.close();
-  }
+     try {
+         // Query using 'q' builder syntax
+         const query = q.Map(
+             q.Paginate(
+                 q.Match(q.Index("scores_sort_by_score_level_desc")), // Ensure Index name is correct
+                 { size: 10 }
+             ),
+             q.Lambda(
+                 ['score', 'level', 'name'], // Vars for values from index
+                 { name: q.Var('name'), score: q.Var('score'), level: q.Var('level') } // Map to object
+             )
+         );
+         const response = await client.query(query);
+         // response.data should be [ { name: ..., score: ..., level: ... }, ... ]
+         console.log(`Successfully fetched ${response.data?.length ?? 0} scores.`);
+         return {
+             statusCode: 200, headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(response.data ?? []),
+         };
+     } catch (error) {
+         console.error("Error fetching scores from Fauna (using 'q' builder):", error);
+         const errorDescription = error.description ?? error.message ?? 'Failed to fetch scores.';
+         const errorMessage = error.message?.includes("invalid ref") ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found? Check name.` : errorDescription;
+         return { statusCode: error.requestResult?.statusCode ?? 500, body: JSON.stringify({ error: errorMessage }) };
+     }
 };
