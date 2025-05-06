@@ -1,82 +1,70 @@
-// netlify/functions/get-scores.js
-import { Client, fql } from 'fauna'; // Use new import style
+// netlify/functions/get-scores.js (or .mjs)
+import { db } from './_firebase-admin-init.js'; // Import initialized db
 
-const faunaSecret = process.env.FAUNA_SERVER_SECRET;
-if (!faunaSecret) {
-    console.error("Fauna secret not found.");
-    // Return error immediately if secret is missing
-    return {
-        statusCode: 500,
-        body: JSON.stringify({ error: "Server configuration error." }),
-        headers: { 'Access-Control-Allow-Origin': '*' } // Include CORS for error
-    };
-}
-
-const client = new Client({ secret: faunaSecret });
+const leaderboardCol = db.collection('leaderboard'); // Reference your collection
 
 export const handler = async (event, context) => {
-    // Handle CORS Preflight request
+    // --- CORS Preflight Handling (KEEP THIS) ---
     if (event.httpMethod === 'OPTIONS') {
         return {
             statusCode: 204,
             headers: {
-                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Origin': '*', // Adjust for production
                 'Access-Control-Allow-Headers': 'Content-Type',
                 'Access-Control-Allow-Methods': 'GET, OPTIONS'
             },
             body: ''
         };
     }
+    // --- Method Check (KEEP THIS) ---
+     if (event.httpMethod !== 'GET') {
+         return { statusCode: 405, body: 'Method Not Allowed', headers: { 'Allow': 'GET, OPTIONS', 'Access-Control-Allow-Origin': '*' } };
+     }
 
-    if (event.httpMethod !== 'GET') {
-        return { statusCode: 405, body: 'Method Not Allowed', headers: { 'Allow': 'GET, OPTIONS' } };
-    }
-
-    console.log("Function 'get-scores' (v10) invoked.");
-
+    console.log("Function 'get-scores' (Firestore) invoked.");
     try {
-        // FQL v10 Query:
-        // Assumes 'scores_by_score_desc' index *Values* are ordered: score, level, name, ref, timestamp
-        // We sort by score desc, then level desc in the index itself.
-        // Here we map the results to the desired output format and take the top 10.
-        const query = fql`
-          scores_by_score_desc.all().map(entry => ({
-            score: entry[0], // Access by index based on Values order
-            level: entry[1],
-            name: entry[2],
-            timestamp: entry[4] // Assuming timestamp is 5th value (index 4)
-            // ref (entry[3]) is not usually needed by client
-          }))[:10] // Get first 10 elements (adjust limit as needed)
-        `;
+        const snapshot = await leaderboardCol
+            .orderBy('score', 'desc') // Order by score descending
+            .orderBy('level', 'desc') // Then by level descending
+            .limit(10)                // Limit to top 10
+            .get();
 
-        const response = await client.query(query);
+        if (snapshot.empty) {
+            console.log('No scores found.');
+            return {
+                statusCode: 200,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+                body: JSON.stringify([]) // Return empty array
+            };
+        }
 
-        // v10 returns data directly under 'data' property
-        const scores = response.data;
-        console.log(`${scores?.length ?? 0} scores retrieved successfully.`);
+        // Map Firestore documents to simple objects
+        const scores = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            scores.push({
+                // id: doc.id, // You could include the Firestore doc ID if needed
+                name: data.name || 'Anonymous', // Add fallback
+                score: data.score || 0,
+                level: data.level || 1,
+                // Convert Firestore Timestamp to ISO string for JSON compatibility
+                timestamp: data.timestamp?.toDate ? data.timestamp.toDate().toISOString() : null
+            });
+        });
 
+        console.log(`${scores.length} scores retrieved successfully.`);
         return {
             statusCode: 200,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            body: JSON.stringify(scores || []), // Return empty array if null/undefined
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify(scores)
         };
-    } catch (error) {
-        console.error("Error fetching scores from Fauna (v10):", error);
-        // Log the detailed error if available
-        const errorMessage = error.message || 'Failed to fetch scores.';
-        const errorDetails = error.cause ? JSON.stringify(error.cause) : ''; // Fauna errors often have details in 'cause'
-        console.error("Fauna Error Details:", errorDetails)
 
+    } catch (error) {
+        console.error("Error fetching scores from Firestore:", error);
         return {
-            statusCode: error.httpStatus || 500, // Use httpStatus if available
-            headers: { 'Access-Control-Allow-Origin': '*' },
-            body: JSON.stringify({ error: errorMessage, details: errorDetails }),
+            statusCode: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ error: 'Failed to fetch scores from database.' })
         };
-    } finally {
-        // Optional: Close client if necessary, though often reused in serverless
-        // client.close();
     }
 };

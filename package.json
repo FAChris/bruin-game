@@ -8,6 +8,6 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "fauna": "^2.5.0"
+    "firebase-admin": "^13.3.0"
   }
 }
