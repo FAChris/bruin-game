@@ -2,13 +2,11 @@
 import { Client, fql } from 'fauna'; // Use new import style
 
 // --- IMPORTANT: Environment Variable Check ---
-// Ensure FAUNA_SERVER_SECRET is set in your Netlify environment!
 const faunaSecret = process.env.FAUNA_SERVER_SECRET;
 if (!faunaSecret) {
   throw new Error("FAUNA_SERVER_SECRET environment variable not set.");
 }
 // --- Client Setup ---
-// Automatically handles region based on secret, usually no need for domain/scheme
 const client = new Client({
   secret: faunaSecret,
 });
@@ -22,13 +20,15 @@ export const handler = async (event) => {
 
   try {
     // FQL v10 Query - fetch top 10 sorted by score, then level
+    // --- CORRECTED QUERY: Removed leading dots from 'score' and 'level' inside orderBy ---
     const query = fql`
-      scores.all().orderBy(.score ~ "desc", .level ~ "desc").map(s => ({
+      scores.all().orderBy(score ~ "desc", level ~ "desc").map(s => ({
         name: s.name,
         score: s.score,
         level: s.level
       })).first(10)
     `;
+    // --- End Correction ---
 
     // Execute the query
     const response = await client.query(query);
@@ -38,20 +38,17 @@ export const handler = async (event) => {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      // response.data should already be the array of objects
       body: JSON.stringify(response.data ?? []),
     };
 
   } catch (error) {
     console.error('Error fetching scores from Fauna:', error);
-    // Extract more specific error message if available
     const errorMessage = error.cause?.queryInfo?.summary ?? error.message ?? 'Failed to fetch scores.';
     return {
-      statusCode: error.httpStatus ?? 500, // Use Fauna's status code if available
+      statusCode: error.httpStatus ?? 500,
       body: JSON.stringify({ error: errorMessage }),
     };
   } finally {
-    // Optional: Close client if needed, though usually managed automatically
-    // client.close();
+    // client.close(); // Usually not needed for serverless
   }
 };
