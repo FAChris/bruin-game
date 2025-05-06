@@ -7,6 +7,6 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "faunadb": "^4.8.2"
+    "fauna": "^2.5.0"
   }
 }
