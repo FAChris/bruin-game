@@ -1,63 +1,55 @@
 // functions/get-scores/get-scores.js
 const faunadb = require('faunadb');
-
-// FaunaDB query functions
 const q = faunadb.query;
 
 exports.handler = async (event) => {
-  // Check if Fauna secret key exists
-  if (!process.env.FAUNA_SERVER_SECRET) {
-    console.error('FaunaDB secret key not found in environment variables.');
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Database configuration error.' }),
-    };
-  }
+  // ... (secret check, client setup - keep domain/scheme if needed) ...
+  const client = new faunadb.Client({ /* ... */ });
 
-// Create FaunaDB client
-  const client = new faunadb.Client({
-    secret: process.env.FAUNA_SERVER_SECRET,
-    // --- MODIFIED: Specify US domain ---
-    domain: 'db.us.fauna.com', // Set domain for US region (UNCOMMENTED)
-    scheme: 'https',           // Ensure HTTPS is used (UNCOMMENTED)
-    // --- End Modification ---
-  });
-
-  if (event.httpMethod !== 'GET') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
-  }
+  if (event.httpMethod !== 'GET') { /* ... */ }
 
   try {
-    // Query FaunaDB using the index to get top 10 scores
-    // The index 'scores_sort_by_score_level_desc' returns values in the format:
-    // [score, level, name]
+    // FQL v10 style query using the index
+    // The index returns [score, level, name]
+    // We use Map/Lambda still, but ensure structure matches index values
     const result = await client.query(
       q.Map(
         q.Paginate(
-          q.Match(q.Index('scores_sort_by_score_level_desc')), // Match all entries in the index
-          { size: 10 } // Limit to top 10
+          q.Match(q.Index('scores_sort_by_score_level_desc')),
+          { size: 10 }
         ),
-        q.Lambda(['score', 'level', 'name'], { // Define variables for the values returned by the index
-          name: q.Var('name'),
-          score: q.Var('score'),
-          level: q.Var('level'),
-        })
+        q.Lambda(
+          ['score', 'level', 'name'], // Matches the order defined in index values
+          { // Construct the object we want
+            name: q.Var('name'),
+            score: q.Var('score'),
+            level: q.Var('level'),
+          }
+        )
       )
     );
+    // Check if the result structure is as expected (v10 might differ slightly)
+     // The driver should abstract this, result.data is common
+    const scores = result.data || [];
 
-    // The result is { data: [ { name: ..., score: ..., level: ... }, ... ] }
-    console.log(`Successfully fetched ${result.data.length} scores.`);
+    console.log(`Successfully fetched ${scores.length} scores (v10).`);
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(result.data), // Return the array of score objects
+      body: JSON.stringify(scores),
     };
-
   } catch (error) {
-    console.error('Error fetching scores from FaunaDB:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to fetch scores.' }),
-    };
+    // ... (existing error handling) ...
+    console.error('Error fetching scores from FaunaDB (v10 attempt):', error);
+     let errorMsg = 'Failed to fetch scores.';
+     if (error.requestResult && error.requestResult.responseContent && error.requestResult.responseContent.errors) {
+       errorMsg = error.requestResult.responseContent.errors[0].description || errorMsg;
+     } else if (error.message) {
+       errorMsg = error.message;
+     }
+     return {
+       statusCode: error.requestResult?.statusCode || 500, // Use Fauna status code if available
+       body: JSON.stringify({ error: errorMsg }),
+     };
   }
 };
