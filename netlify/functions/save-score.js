@@ -32,31 +32,33 @@ exports.handler = async (event) => {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
 
+  let db;
   try {
-    const db = new sqlite3.Database(dbPath); // Open database here
-    await run(db, `
-      CREATE TABLE IF NOT EXISTS scores (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        score INTEGER NOT NULL,
-        level INTEGER NOT NULL,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    db = new sqlite3.Database(dbPath); // Open database here
+
+    const initializeDatabase = async (db) => {
+      await run(db, `
+        CREATE TABLE IF NOT EXISTS scores (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          score INTEGER NOT NULL,
+          level INTEGER NOT NULL,
+          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await new Promise((resolve) => db.close(resolve)); // Close after creating
+    };
 
     const { name, score, level } = JSON.parse(event.body);
     if (!name || typeof score !== 'number' || typeof level !== 'number') {
       return { statusCode: 400, body: 'Missing or invalid data.' };
     }
 
-    const existingHighScore = await get(db, `SELECT score FROM scores WHERE name = ? ORDER BY score DESC LIMIT 1`, [name]);
+    db = new sqlite3.Database(dbPath); // Open again for insert
+    const result = await run(db, `INSERT OR REPLACE INTO scores (name, score, level) VALUES (?, ?, ?)`, [name, score, level]); // Use INSERT OR REPLACE
+    await new Promise((resolve) => db.close(resolve));
 
-    if (!existingHighScore || score > existingHighScore.score) {
-      await run(db, `INSERT OR REPLACE INTO scores (name, score, level) VALUES (?, ?, ?)`, [name, score, level]); // Use INSERT OR REPLACE
-    }
-
-    await new Promise((resolve) => db.close(resolve)); // Close the database
-    return { statusCode: 201, body: JSON.stringify({ message: 'Score saved successfully!' }) };
+    return { statusCode: 201, body: JSON.stringify({ message: 'Score saved successfully!', scoreId: result.lastID }) };
 
   } catch (error) {
     console.error('Function error:', error);

@@ -48,23 +48,14 @@ exports.handler = async (event) => {
   let db;
   try {
     db = new sqlite3.Database(dbPath); // Open database here
-    await run(db, `
-      CREATE TABLE IF NOT EXISTS scores (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        score INTEGER NOT NULL,
-        level INTEGER NOT NULL,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
     const scores = await all(db, `SELECT name, score, level FROM scores ORDER BY score DESC, level DESC LIMIT 10`);
-    await new Promise((resolve) => db.close(resolve)); // Close the database
     return { statusCode: 200, body: JSON.stringify(scores) };
   } catch (error) {
     console.error('Function error:', error);
-    if (db) {
-      await new Promise((resolve) => db.close(resolve)); // Ensure close even on error
-    }
     return { statusCode: 500, body: 'Internal Server Error' };
+  } finally {
+    if (db) {
+      await new Promise((resolve) => db.close(resolve)); // Ensure database is closed
+    }
   }
 };
