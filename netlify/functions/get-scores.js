@@ -1,82 +1,74 @@
 // functions/get-scores/get-scores.js
-const { Client, query: q } = require('fauna'); // Use require
+import { Client, fql } from 'fauna'; // Match working save-score.js
 
 const faunaSecret = process.env.FAUNA_SERVER_SECRET;
-
-// Check imports and secret
-if (!q || !Client) {
-  console.error("Failed to import Fauna Client or query builder.");
-  // Allow execution to continue, it will fail later if q is truly missing
+if (!faunaSecret) {
+  // Log error during initialization for clarity, but let handler manage response
+  console.error("FAUNA_SERVER_SECRET environment variable not set during function init.");
 }
- if (!faunaSecret && process.env.NODE_ENV === 'production') {
-   console.error("FAUNA_SERVER_SECRET environment variable not set.");
-   return { statusCode: 500, body: JSON.stringify({ error: "Configuration error."}) };
- }
- if (!faunaSecret) {
-     console.warn("FAUNA_SERVER_SECRET environment variable not set. Using placeholder or expecting failure.");
- }
-
 const client = new Client({
-  secret: faunaSecret || "undefined_secret", // Use placeholder if missing
-  // domain: 'db.us.fauna.com', // Still uncomment if needed for US region
+  secret: faunaSecret || "MISSING_SECRET", // Use placeholder if missing
+  // domain: 'db.us.fauna.com', // Keep uncommented if needed for US region
   // scheme: 'https',
 });
 
-// Use module.exports for CommonJS handler export
-module.exports.handler = async (event) => {
-     if (event.httpMethod !== 'GET') {
-         return { statusCode: 405, body: 'Method Not Allowed' };
-     }
+export const handler = async (event) => { // Match working save-score.js export style
+  if (event.httpMethod !== 'GET') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
+  }
 
-     console.log("Attempting to fetch scores using FQL 'q' builder syntax (require)...");
+  // Check secret again inside handler
+  if (!faunaSecret) {
+       console.error("FAUNA_SERVER_SECRET missing inside handler execution.");
+       return { statusCode: 500, body: JSON.stringify({ error: "Server configuration error."}) };
+  }
 
-     if (!faunaSecret) {
-          console.error("FAUNA_SERVER_SECRET missing inside handler.");
-          return { statusCode: 500, body: JSON.stringify({ error: "Server configuration error."}) };
-     }
-     // Add check if q was imported correctly
-      if (!q) {
-          console.error("Fauna query builder ('q') is not available.");
-          return { statusCode: 500, body: JSON.stringify({ error: "Server setup error."}) };
-      }
+  console.log("Attempting to fetch scores using FQL v10 (match.map.paginate)...");
 
-     try {
-         // --- Query using 'q' builder syntax ---
-         const query = q.Map(
-             q.Paginate(
-                 q.Match(q.Index("scores_sort_by_score_level_desc")), // Ensure Index name is correct!
-                 { size: 10 }
-             ),
-             q.Lambda(
-                 ['score', 'level', 'name'], // Vars for values from index
-                 {                          // Object to return
-                     name: q.Var('name'),
-                     score: q.Var('score'),
-                     level: q.Var('level')
-                 }
-             )
-         );
-         // --- End Query ---
+  try {
+    // --- CORRECTED QUERY v11: Using match().map().paginate() structure ---
+    // 1. Match all entries in the sorted index (returns a SetRef)
+    // 2. Map each entry (the raw index value: [score, level, name]) to an object
+    // 3. Paginate the resulting set of objects
+    const query = fql`
+      match(index("scores_sort_by_score_level_desc"))
+        .map(row => ({ // Map the raw [score, level, name] array from the index
+          score: row[0],
+          level: row[1],
+          name: row[2]
+        }))
+        .paginate({ size: 10 }) // Paginate the set of *objects*
+    `;
+    // --- End Correction ---
 
-         const response = await client.query(query);
+    // Execute the query
+    const response = await client.query(query);
+    // The result should be { data: [ { name:..., score:..., level:... }, ... ] }
+    // Note: .paginate() returns an object with a 'data' array field
 
-         console.log(`Successfully fetched ${response.data?.length ?? 0} scores.`);
+    const scores = response.data?.data ?? []; // Extract the actual array of scores from the page object
 
-         return {
-             statusCode: 200,
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify(response.data ?? []), // q.Map returns { data: [...] }
-         };
+    console.log(`Successfully fetched ${scores.length} scores.`);
 
-     } catch (error) {
-         console.error("Error fetching scores from Fauna (using 'q' builder):", error);
-         const errorDescription = error.description ?? error.message ?? 'Failed to fetch scores.';
-         const errorMessage = error.message?.includes("invalid ref")
-           ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found or name is incorrect. Check index name.`
-           : errorDescription;
-         return {
-           statusCode: error.requestResult?.statusCode ?? 500,
-           body: JSON.stringify({ error: errorMessage }),
-         };
-     }
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(scores), // Return the array of score objects
+    };
+
+  } catch (error) {
+    console.error('Error fetching scores from Fauna (match.map.paginate attempt):', error);
+    const errorSummary = error.cause?.queryInfo?.summary ?? error.message ?? 'Failed to fetch scores.';
+    // Check for specific errors like index not found
+    const errorMessage = error.message?.includes("invalid ref") || errorSummary.includes("index") || errorSummary.includes("Index")
+       ? `Failed to fetch scores. Index 'scores_sort_by_score_level_desc' not found, name incorrect, or issue with query structure. Check index & query.`
+       : errorSummary;
+    const statusCode = error.httpStatus ?? error.requestResult?.statusCode ?? 500;
+    return {
+      statusCode: statusCode,
+      body: JSON.stringify({ error: errorMessage }),
+    };
+  } finally {
+    // client.close(); // Usually managed automatically
+  }
 };
