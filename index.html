@@ -795,6 +795,7 @@ function showAchievementsModal() {
     const modal = document.getElementById('achievements-modal');
     const list = document.getElementById('achievements-list');
     if (modal && list) {
+        console.log('Showing achievements modal with current states:', achievements);
         list.innerHTML = achievements.map(achievement => {
             const progress = achievement.progress(); // Get progress as a fraction (0 to 1)
             const progressPercentage = (progress * 100).toFixed(0); // Convert to percentage
@@ -1740,28 +1741,51 @@ function updateMagnet() {
              itemNotificationElement.style.animation = 'none'; itemNotificationElement.offsetHeight; itemNotificationElement.style.animation = ''; }
 function loadAchievements() {
     try {
-        const stored = localStorage.getItem(`${ACHIEVEMENTS_KEY}_${playerName}`);
+        const storageKey = `${ACHIEVEMENTS_KEY}_${playerName}`;
+        console.log('Loading achievements for key:', storageKey);
+        const stored = localStorage.getItem(storageKey);
+        console.log('Raw stored data from localStorage:', stored);
         playerAchievements = stored ? JSON.parse(stored) : [];
+        // Ensure playerAchievements contains valid strings
+        playerAchievements = playerAchievements
+            .filter(id => typeof id === 'string')
+            .map(id => id.trim());
+        console.log('Parsed playerAchievements:', playerAchievements);
         achievements.forEach(achievement => {
-            achievement.unlocked = playerAchievements.includes(achievement.id);
+            const isUnlocked = playerAchievements.includes(achievement.id);
+            console.log(`Achievement ${achievement.id}: Setting unlocked to ${isUnlocked}`);
+            achievement.unlocked = isUnlocked;
         });
-        console.log('Achievements loaded for', playerName, playerAchievements);
+        console.log('Achievements after loading:', achievements);
     } catch (e) {
         console.error('Error loading achievements:', e);
+        const storageKey = `${ACHIEVEMENTS_KEY}_${playerName}`;
+        localStorage.removeItem(storageKey);
+        console.log(`Cleared corrupted localStorage key: ${storageKey}`);
         playerAchievements = [];
         achievements.forEach(achievement => {
             achievement.unlocked = false;
         });
+        console.log('Achievements reset to default due to error:', achievements);
     }
 }
 
 function saveAchievements() {
-    if (!playerName) return;
+    if (!playerName) {
+        console.warn('Cannot save achievements: playerName is not set');
+        return;
+    }
     try {
-        const unlockedIds = achievements.filter(a => a.unlocked).map(a => a.id);
-        localStorage.setItem(`${ACHIEVEMENTS_KEY}_${playerName}`, JSON.stringify(unlockedIds));
+        const unlockedIds = achievements
+            .filter(a => a.unlocked)
+            .map(a => a.id.trim()); // Ensure IDs are clean
+        const storageKey = `${ACHIEVEMENTS_KEY}_${playerName}`;
+        console.log('Saving achievements to key:', storageKey, 'with data:', unlockedIds);
+        localStorage.setItem(storageKey, JSON.stringify(unlockedIds));
         playerAchievements = unlockedIds;
         console.log('Achievements saved for', playerName, unlockedIds);
+        const savedData = localStorage.getItem(storageKey);
+        console.log('Verified saved data:', savedData);
     } catch (e) {
         console.error('Error saving achievements:', e);
     }
