@@ -1379,7 +1379,7 @@ function gameLoop() {
         // --- Event Listeners ---
         // Keyboard Controls
 
-        const handleRestart = (e) => {
+const handleRestart = (e) => {
     if (e.target.id === 'share-score-button') return; // Ignore share button clicks
     e.stopPropagation();
     if (isGameOver) {
@@ -1523,9 +1523,6 @@ if (closeHowToPlayModalButton && howToPlayModal) {
              e.stopPropagation(); // Prevent game container touchstart? Maybe not needed.
              playerNameInput.focus(); });
           // Restart Game Message Listeners
-          const handleRestart = (e) => { e.stopPropagation(); if (isGameOver) { showNameInputScreen(); } };
-         messageElement.addEventListener('click', handleRestart);
-         messageElement.addEventListener('touchend', handleRestart); // Use touchend for faster response on mobile
 
         // Fullscreen Toggle Function
          function toggleFullScreen() { try { if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) { console.log('Attempting to enter fullscreen on:', gameContainer); if (gameContainer.requestFullscreen) { gameContainer.requestFullscreen().catch(err => console.error('Fullscreen request failed:', err)); } else if (gameContainer.mozRequestFullScreen) { /* Firefox */ gameContainer.mozRequestFullScreen().catch(err => console.error('Moz fullscreen failed:', err)); } else if (gameContainer.webkitRequestFullscreen) { /* Chrome, Safari & Opera */ gameContainer.webkitRequestFullscreen().catch(err => console.error('Webkit fullscreen failed:', err)); } else if (gameContainer.msRequestFullscreen) { /* IE/Edge */ gameContainer.msRequestFullscreen().catch(err => console.error('MS fullscreen failed:', err)); } else { console.warn('Fullscreen API not supported by this browser.'); } } else { console.log('Attempting to exit fullscreen'); if (document.exitFullscreen) { document.exitFullscreen().catch(err => console.error('Exit fullscreen failed:', err)); } else if (document.mozCancelFullScreen) { /* Firefox */ document.mozCancelFullScreen().catch(err => console.error('Moz exit fullscreen failed:', err)); } else if (document.webkitExitFullscreen) { /* Chrome, Safari and Opera */ document.webkitExitFullscreen().catch(err => console.error('Webkit exit fullscreen failed:', err)); } else if (document.msExitFullscreen) { /* IE/Edge */ document.msExitFullscreen().catch(err => console.error('MS exit fullscreen failed:', err)); } else { console.warn('Exit Fullscreen API not supported by this browser.'); } } } catch (err) { console.error('Error during fullscreen toggle:', err); } }
