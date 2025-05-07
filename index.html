@@ -434,6 +434,7 @@ const NETLIFY_GET_SCORES_URL = '/.netlify/functions/get-scores';
         // --- Tone.js Setup ---
         let jumpSynth, collectSynth, hurtSynth, levelUpSynth, bonusSynth, powerupSynth;
         let soundsEnabled = false;
+        let soundGloballyEnabled = true; // User's preference, loaded from localStorag
 function initAudio() {
     // Check if Tone.js library is loaded. If not, sound cannot be enabled.
     if (typeof Tone === 'undefined') {
@@ -496,12 +497,8 @@ function initAudio() {
                 bonusSynth = new Tone.Synth({ oscillator: { type: 'pulse', width: 0.4 }, envelope: { attack: 0.1, decay: 0.4, sustain: 0.2, release: 0.5 } }).toDestination();
                 powerupSynth = new Tone.Synth({ oscillator: { type: 'sine' }, volume: -6, envelope: { attack: 0.02, decay: 0.1, sustain: 0.2, release: 0.2 } }).toDestination();
                 soundsEnabled = true; console.log("Audio Initialized (Context running)"); } }
-                function playSound(type, note = 'C4', duration = '8n') {
-    // This is the ONLY line that should be different from your original playSound
+function playSound(type, note = 'C4', duration = '8n') {
     if (!soundsEnabled || !soundGloballyEnabled || typeof Tone === 'undefined') return;
-
-    // The ENTIRE try...catch block below should be EXACTLY as it was
-    // in your previously working game, with all sound types included.
     try {
         const now = Tone.now();
         if (type === 'good' && collectSynth) collectSynth.triggerAttackRelease('C5', '16n', now);
@@ -515,47 +512,56 @@ function initAudio() {
         else if (type === 'levelUp' && levelUpSynth) levelUpSynth.triggerAttackRelease('G4', '4n', now);
         else if (type === 'bonusStart' && bonusSynth) bonusSynth.triggerAttackRelease('C5', '2n', now);
         else if (type === 'gameOver' && hurtSynth) hurtSynth.triggerAttackRelease('F2', '1n', now);
-        // Add any other custom sound types you had here
     } catch (e) {
         console.error("Sound playback error:", e);
     }
 }
-                function initAudioInternal() {
+function initAudioInternal() {
     if (typeof Tone === 'undefined') return;
     if (collectSynth) return; // Already initialized
 
+    console.log("initAudioInternal() - Creating sound synthesizers...");
     jumpSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 } }).toDestination();
     collectSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.2 } }).toDestination();
     hurtSynth = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.1 } }).toDestination();
     levelUpSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.05, decay: 0.3, sustain: 0.1, release: 0.3 } }).toDestination();
     bonusSynth = new Tone.Synth({ oscillator: { type: 'pulse', width: 0.4 }, envelope: { attack: 0.1, decay: 0.4, sustain: 0.2, release: 0.5 } }).toDestination();
     powerupSynth = new Tone.Synth({ oscillator: { type: 'sine' }, volume: -6, envelope: { attack: 0.02, decay: 0.1, sustain: 0.2, release: 0.2 } }).toDestination();
-    soundsEnabled = true; // This flag means synths are ready
-    console.log("Audio Synths Initialized");
+    
+    soundsEnabled = true; 
+    console.log("Audio Synths Initialized by initAudioInternal(). soundsEnabled: true");
 }
 
 
 // --- Modify initAudio() slightly ---
 function initAudio() {
-    if (typeof Tone === 'undefined') return; // Tone.js not loaded
-
-    if (soundGloballyEnabled) { // Only attempt to start/init if globally enabled
-        if (Tone.context.state !== 'running') {
-            Tone.start().then(() => {
-                if (!soundGloballyEnabled) return; // Check again after promise
-                console.log("Audio Context Started on Game Init");
-                initAudioInternal();
-            }).catch(e => {
-                console.error("Audio init failed:", e);
-                soundsEnabled = false; // Ensure this is false on failure
-                // Optionally update UI to reflect audio failure
-            });
-        } else if (!collectSynth) { // Context running, but synths not initialized
-            initAudioInternal();
+    if (typeof Tone === 'undefined') {
+        console.log("Tone is undefined in initAudio.");
+        soundsEnabled = false; 
+        return; 
+    }
+    if (!soundGloballyEnabled) {
+        soundsEnabled = false; 
+        console.log("Audio globally disabled, initAudio() did not initialize synths.");
+        return; 
+    }
+    console.log("initAudio() called, soundGloballyEnabled is true.");
+    if (Tone.context.state !== 'running') {
+        Tone.start().then(() => {
+            console.log("Audio Context Started by initAudio()");
+            initAudioInternal(); 
+        }).catch(e => {
+            console.error("Audio context start failed in initAudio():", e);
+            soundsEnabled = false;
+        });
+    } else { 
+        if (!collectSynth) {
+            console.log("Audio Context running, calling initAudioInternal() to create synths.");
+            initAudioInternal(); 
+        } else {
+            console.log("Audio Context running and synths exist. Ensuring soundsEnabled is true.");
+            soundsEnabled = true; 
         }
-    } else {
-        console.log("Audio globally disabled, not initializing context or synths.");
-        soundsEnabled = false; // Ensure game doesn't think sounds are ready
     }
 }
         // --- Leaderboard Handling ---
@@ -731,39 +737,37 @@ function initAudio() {
                  if (this.type === 'bad' && Math.random() < BAD_ITEM_SPARKLE_CHANCE) { createParticle(this.x + this.size / 2, this.y + this.size / 2, BAD_SPARKLE_COUNT, badItemSparkleColor, BAD_SPARKLE_SPEED, 'radiate'); } else if (this.isGolden) { ctx.shadowColor = 'rgba(255, 223, 0, 0.8)'; ctx.shadowBlur = GOLDEN_ITEM_SHADOW_BLUR; } else if (this.isSuperRare) { ctx.shadowColor = 'rgba(200, 200, 255, 0.9)'; ctx.shadowBlur = SUPER_RARE_ITEM_SHADOW_BLUR; if (Math.random() < SUPER_RARE_SPARKLE_CHANCE) { createParticle(this.x + this.size / 2, this.y + this.size / 2, SUPER_RARE_SPARKLE_COUNT, superRareParticleColor, SUPER_RARE_SPARKLE_SPEED, 'radiate'); } } else if (this.type === 'life' || this.type === 'grow' || this.type === 'shrink') { // Group power-ups visually
                      if(this.type === 'life') ctx.shadowColor = 'rgba(0, 191, 255, 0.7)'; else if (this.type === 'grow') ctx.shadowColor = 'rgba(50, 205, 50, 0.7)'; else ctx.shadowColor = 'rgba(138, 43, 226, 0.7)'; ctx.shadowBlur = POWERUP_ITEM_SHADOW_BLUR; } ctx.fillText(this.emoji, this.x + this.size / 2, this.y + this.size / 2); ctx.restore(); } }; }
 
-    function updateSoundButtonIcon() {
+function updateSoundButtonIcon() {
     if (soundToggleButton) {
         soundToggleButton.innerHTML = soundGloballyEnabled ? '🔊' : '🔇';
     }
 }
-  function toggleGlobalSound() {
+
+function toggleGlobalSound() {
     soundGloballyEnabled = !soundGloballyEnabled;
     localStorage.setItem('bruinCatchSoundEnabled', soundGloballyEnabled);
     updateSoundButtonIcon();
     console.log('toggleGlobalSound - soundGloballyEnabled:', soundGloballyEnabled);
 
     if (soundGloballyEnabled && typeof Tone !== 'undefined') {
-        // If unmuting and context isn't running, try to start it.
         if (Tone.context.state !== 'running') {
             Tone.start().then(() => {
                 console.log("Audio context started by toggle.");
-                // If synths weren't made yet (e.g., first game was muted), make them.
                 if (!collectSynth) {
-                    initAudioInternal(); // This sets soundsEnabled = true
+                    initAudioInternal();
                 } else {
-                    soundsEnabled = true; // Synths exist, ensure game sound flag is on
+                    soundsEnabled = true; 
                 }
             }).catch(e => {
                 console.error("Audio context start failed on toggle:", e);
-                soundsEnabled = false; // If context fails, sounds should be off
+                soundsEnabled = false; 
             });
-        } else if (!collectSynth) { // Context is running, but synths weren't made
-            initAudioInternal(); // This sets soundsEnabled = true
-        } else { // Context is running AND synths exist
-            soundsEnabled = true; // We are unmuting, ensure game sound flag is on
+        } else if (!collectSynth) { 
+            initAudioInternal(); 
+        } else { 
+            soundsEnabled = true; 
         }
     } else if (!soundGloballyEnabled) {
-        // If muting, ensure the game's sound flag is off too.
         soundsEnabled = false;
         console.log('Sounds globally muted, soundsEnabled set to false.');
     }
