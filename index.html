@@ -623,37 +623,46 @@ function initAudioInternal() {
         
 function openHowToPlayModal() {
     if (!howToPlayModal || !gameContainer || !document.body) {
-        console.error("Modal, gameContainer, or body not found in openHowToPlayModal");
+        console.error("MODAL_DEBUG: openHowToPlayModal - Crucial elements missing. Modal:", !!howToPlayModal, "GameContainer:", !!gameContainer, "Body:", !!document.body);
         return;
     }
 
-    // Ensure originalModalParent is correctly captured if not already
-    // This should ideally be the body if the modal is initially a direct child of body.
-    if (!originalModalParent && howToPlayModal.parentNode) {
+    // Ensure originalModalParent is correctly captured.
+    // It should be where the modal is when NOT in fullscreen (typically document.body).
+    if (!originalModalParent && howToPlayModal.parentNode && howToPlayModal.parentNode !== gameContainer) {
         originalModalParent = howToPlayModal.parentNode;
     } else if (!originalModalParent) {
-        originalModalParent = document.body; // Fallback
+        // This is a fallback if the modal somehow had no parent on load.
+        originalModalParent = document.body;
     }
-    console.log("openHowToPlayModal: Original parent is", originalModalParent.tagName || originalModalParent);
-
+    console.log("MODAL_DEBUG: openHowToPlayModal - Current modal parent:", howToPlayModal.parentNode ? (howToPlayModal.parentNode.id || howToPlayModal.parentNode.tagName) : "none");
+    console.log("MODAL_DEBUG: openHowToPlayModal - Intended originalModalParent:", originalModalParent ? (originalModalParent.id || originalModalParent.tagName) : "none");
+    console.log("MODAL_DEBUG: openHowToPlayModal - Is gameContainer fullscreen?", document.fullscreenElement === gameContainer);
 
     if (document.fullscreenElement === gameContainer) {
         // If game is fullscreen, modal MUST be a child of gameContainer to be visible
         if (howToPlayModal.parentNode !== gameContainer) {
-            console.log("Game is fullscreen. Moving modal INTO gameContainer.");
+            console.log("MODAL_DEBUG: Game IS fullscreen. Moving modal INTO gameContainer.");
             gameContainer.appendChild(howToPlayModal);
-            modalWasMovedForFullscreen = true;
+            modalWasMovedForFullscreen = true; // Set flag
+        } else {
+            console.log("MODAL_DEBUG: Game IS fullscreen. Modal already in gameContainer.");
         }
     } else {
-        // If game is NOT fullscreen, modal should be a child of its original parent (likely body)
+        // If game is NOT fullscreen, modal should be a child of its original parent
         if (howToPlayModal.parentNode !== originalModalParent && originalModalParent) {
-            console.log("Game NOT fullscreen. Moving modal to original parent:", originalModalParent.tagName);
+            console.log("MODAL_DEBUG: Game NOT fullscreen. Modal not in original parent. Moving to original parent:", originalModalParent.id || originalModalParent.tagName);
             originalModalParent.appendChild(howToPlayModal);
+        } else if (!howToPlayModal.parentNode && originalModalParent) { // If modal was somehow detached
+            console.log("MODAL_DEBUG: Game NOT fullscreen. Modal has no parent. Moving to original parent:", originalModalParent.id || originalModalParent.tagName);
+            originalModalParent.appendChild(howToPlayModal);
+        } else {
+            console.log("MODAL_DEBUG: Game NOT fullscreen. Modal already in correct parent or originalModalParent is null/invalid.");
         }
-        modalWasMovedForFullscreen = false;
+        modalWasMovedForFullscreen = false; // Reset flag
     }
     howToPlayModal.style.display = 'flex';
-    console.log("Modal display set to flex. Current parent:", howToPlayModal.parentNode ? howToPlayModal.parentNode.tagName : "no parent");
+    console.log("MODAL_DEBUG: Modal display set to flex. New parent:", howToPlayModal.parentNode ? (howToPlayModal.parentNode.id || howToPlayModal.parentNode.tagName) : "none");
 }
 
 // Function to close the "How to Play" modal
@@ -961,23 +970,31 @@ function toggleGlobalSound() {
 
         // --- Event Listeners ---
         // Keyboard Controls
-        if (howToPlayButton && howToPlayModal) {
-    howToPlayButton.addEventListener('click', () => {
-        howToPlayModal.style.display = 'flex';
-    });
-    howToPlayButton.addEventListener('touchend', (e) => { // For mobile
+if (howToPlayButton && howToPlayModal) {
+    const handleHowToPlayClick = (eventType) => {
+        // NEW LOG: Confirm button click and check current fullscreen state
+        console.log(`"How to Play" button event: ${eventType}. Fullscreen element:`, document.fullscreenElement ? document.fullscreenElement.id : "none");
+        openHowToPlayModal();
+    };
+
+    howToPlayButton.addEventListener('click', () => handleHowToPlayClick('click'));
+    howToPlayButton.addEventListener('touchend', (e) => {
         e.preventDefault();
-        howToPlayModal.style.display = 'flex';
+        handleHowToPlayClick('touchend');
     });
+    console.log("Event listeners for 'howToPlayButton' attached."); // Confirm listener setup
+} else {
+    if (!howToPlayButton) console.error("'howToPlayButton' not found during listener attachment.");
+    if (!howToPlayModal) console.error("'howToPlayModal' not found during listener attachment.");
 }
 
-        document.addEventListener('fullscreenchange', () => {
+document.addEventListener('fullscreenchange', () => {
     if (!howToPlayModal || !gameContainer) {
-        console.warn("fullscreenchange: Modal or gameContainer is null.");
+        console.warn("MODAL_DEBUG: fullscreenchange - Modal or gameContainer is null.");
         return;
     }
     // Ensure originalModalParent is known
-    if (!originalModalParent && howToPlayModal.parentNode) {
+    if (!originalModalParent && howToPlayModal.parentNode && howToPlayModal.parentNode !== gameContainer) {
         originalModalParent = howToPlayModal.parentNode;
     } else if (!originalModalParent) {
         originalModalParent = document.body; // Fallback
@@ -986,19 +1003,22 @@ function toggleGlobalSound() {
     const isCurrentlyFullscreen = document.fullscreenElement === gameContainer;
     const modalIsOpen = howToPlayModal.style.display === 'flex';
 
-    console.log(`Fullscreen changed. Is fullscreen: ${isCurrentlyFullscreen}, Modal open: ${modalIsOpen}, Modal parent: ${howToPlayModal.parentNode ? howToPlayModal.parentNode.id : 'none'}`);
+    console.log(`MODAL_DEBUG: Fullscreen event. Is now fullscreen: ${isCurrentlyFullscreen}, Modal open: ${modalIsOpen}, Modal current parent: ${howToPlayModal.parentNode ? (howToPlayModal.parentNode.id || howToPlayModal.parentNode.tagName) : 'none'}`);
 
     if (!isCurrentlyFullscreen) { // Exited fullscreen
         if (modalWasMovedForFullscreen && howToPlayModal.parentNode === gameContainer && originalModalParent) {
-            console.log("Exited fullscreen. Modal was in gameContainer. Moving back to original parent:", originalModalParent.tagName);
+            console.log("MODAL_DEBUG: Exited fullscreen. Modal was in gameContainer. Moving back to original parent:", originalModalParent.id || originalModalParent.tagName);
             originalModalParent.appendChild(howToPlayModal);
         }
-        modalWasMovedForFullscreen = false; // Always reset this when exiting fullscreen
-    } else { // Entered fullscreen (or already in it and something changed)
-        if (modalIsOpen && howToPlayModal.parentNode !== gameContainer) {
-            console.log("Entered fullscreen & modal is open but not in gameContainer. Moving modal INTO gameContainer.");
+        modalWasMovedForFullscreen = false;
+    } else { // Entered fullscreen
+        if (modalIsOpen && howToPlayModal.parentNode !== gameContainer && originalModalParent) {
+            console.log("MODAL_DEBUG: Entered fullscreen & modal is open but not in gameContainer. Moving modal INTO gameContainer.");
             gameContainer.appendChild(howToPlayModal);
             modalWasMovedForFullscreen = true;
+        } else if (modalIsOpen && howToPlayModal.parentNode === gameContainer) {
+            console.log("MODAL_DEBUG: Entered fullscreen & modal is open and already in gameContainer.");
+            modalWasMovedForFullscreen = true; // Ensure flag is set
         }
     }
 });
@@ -1090,15 +1110,19 @@ if (closeHowToPlayModalButton && howToPlayModal) {
 
         // --- Initial Setup ---
         window.addEventListener('resize', resizeCanvas);
-        window.addEventListener('load', () => {
-            loadRemoteLeaderboard(); // Load leaderboard (tries server, falls back to local)
-            resizeCanvas();          // Size canvas correctly
-            
-            if (howToPlayModal) {
-        originalModalParent = howToPlayModal.parentNode; // Should be <body>
-        console.log("Initial originalModalParent:", originalModalParent.tagName);
+       window.addEventListener('load', () => {
+    loadRemoteLeaderboard();
+    resizeCanvas();
+
+    // Initialize originalModalParent here
+    if (howToPlayModal && howToPlayModal.parentNode) { // Check parentNode exists
+        originalModalParent = howToPlayModal.parentNode;
+        console.log("MODAL_DEBUG: Initial originalModalParent on load:", originalModalParent.id || originalModalParent.tagName);
+    } else if (howToPlayModal) { // Modal exists but no parent? Should be body.
+        originalModalParent = document.body;
+         console.warn("MODAL_DEBUG: howToPlayModal had no parent on load. Defaulting originalModalParent to body.");
     } else {
-        console.error("CRITICAL: howToPlayModal element not found on page load!");
+        console.error("MODAL_DEBUG: CRITICAL - howToPlayModal element not found on page load!");
         originalModalParent = document.body; // Fallback, but indicates an HTML issue
     }
 
