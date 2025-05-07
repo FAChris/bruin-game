@@ -200,6 +200,72 @@
 #sound-toggle-button:hover {
     background-color: #5a6268;
 }
+        /* Share Score Button */
+#share-score-button {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.9em;
+    padding: 10px 20px;
+    background-color: #2774AE; /* Matches start-game-button */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 15px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+#share-score-button:hover {
+    background-color: #1E5A8C;
+}
+
+/* Copied Notification */
+#copied-notification {
+    position: absolute;
+    top: 70%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1em;
+    color: #FFD700; /* Gold for visibility */
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 10px 20px;
+    border-radius: 8px;
+    z-index: 25;
+    display: none;
+    text-align: center;
+    animation: fadeOutNotification 1.5s forwards;
+}
+
+/* Reuse existing fadeOutNotification animation */
+@keyframes fadeOutNotification {
+    0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    #share-score-button {
+        font-size: 0.8em;
+        padding: 8px 15px;
+    }
+    #copied-notification {
+        font-size: 0.9em;
+        padding: 8px 15px;
+    }
+}
+@media (max-width: 450px) {
+    #share-score-button {
+        font-size: 0.7em;
+        padding: 6px 12px;
+    }
+    #copied-notification {
+        font-size: 0.8em;
+    }
+}
         /* In-Game UI */
         .ui-overlay { position: absolute; top: 10px; left: 15px; right: 15px; display: flex; justify-content: space-between; align-items: flex-start; color: #ffffff; font-size: 1em; z-index: 10; pointer-events: none; visibility: hidden; }
         .ui-left, .ui-center, .ui-right { display: flex; flex-direction: column; gap: 5px; }
@@ -373,6 +439,7 @@
     <div id="message" class="message">Tap or Click to Start</div>
     <div id="levelUpMessage" class="level-up-message">Level Up!</div>
     <div id="item-notification"></div>
+    <div id="copied-notification">Copied!</div>
 </div>
 
 
@@ -1185,7 +1252,32 @@ function updateMagnet() {
              // --- MODIFIED: Use constant for duration ---
              notificationTimeoutId = setTimeout(() => { itemNotificationElement.style.display = 'none'; }, ITEM_NOTIFICATION_DURATION); // Restart fadeout animation
              itemNotificationElement.style.animation = 'none'; itemNotificationElement.offsetHeight; itemNotificationElement.style.animation = ''; }
+function shareScore() {
+    const gameUrl = 'https://aquamarine-dieffenbachia-ed23a6.netlify.app/'; // Replace with your actual game URL
+    const shareMessage = `I scored ${score} on Bruin Catch! Can you beat it? ${gameUrl}`;
+    const copiedNotification = document.getElementById('copied-notification');
 
+    // Copy to clipboard
+    navigator.clipboard.writeText(shareMessage).then(() => {
+        console.log('Score shared to clipboard:', shareMessage);
+        if (copiedNotification) {
+            copiedNotification.style.display = 'block';
+            copiedNotification.style.animation = 'none';
+            copiedNotification.offsetHeight; // Trigger reflow
+            copiedNotification.style.animation = '';
+            setTimeout(() => {
+                copiedNotification.style.display = 'none';
+            }, 1500); // Matches fadeOutNotification duration
+        }
+    }).catch(err => {
+        console.error('Failed to copy to clipboard:', err);
+        alert('Failed to copy score. Share this: ' + shareMessage);
+    });
+
+    // Optional: Open Twitter/X share window
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}`;
+    window.open(twitterUrl, '_blank', 'width=600,height=400');
+}
         // --- Drawing ---
         function drawBackground() { if (!themeColors || !ctx || !canvas) return; // Sky
              const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.7); skyGradient.addColorStop(0, themeColors.sky1 || '#87CEEB'); skyGradient.addColorStop(1, themeColors.sky2 || '#ADD8E6'); ctx.fillStyle = skyGradient; ctx.fillRect(0, 0, canvas.width, canvas.height); // Ground
@@ -1228,7 +1320,7 @@ function gameLoop() {
     drawGame();
     animationFrameId = requestAnimationFrame(gameLoop);
 }
-      function gameOver() {
+  function gameOver() {
     if (isGameOver) {
         console.log("gameOver called but already over, skipping");
         return;
@@ -1239,10 +1331,30 @@ function gameLoop() {
     animationFrameId = null;
     saveToLeaderboard();
     const safePlayerName = (playerName || "Bruin").replace(/</g, "<").replace(/>/g, ">");
-    messageElement.innerHTML = `Game Over!<br>Player: ${safePlayerName}<br>Level: ${level} | Score: ${score}<br>Tap or Click to Play Again`;
+    messageElement.innerHTML = `
+        Game Over!<br>
+        Player: ${safePlayerName}<br>
+        Level: ${level} | Score: ${score}<br>
+        Tap or Click to Play Again<br>
+        <button id="share-score-button">Share Score</button>
+    `;
     messageElement.style.display = 'block';
     gameContainer.style.cursor = 'pointer';
     playSound('gameOver');
+
+    // Add event listeners for the share button
+    const shareButton = document.getElementById('share-score-button');
+    if (shareButton) {
+        shareButton.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent triggering game restart
+            shareScore();
+        });
+        shareButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            shareScore();
+        });
+    }
 }
 
         function showNameInputScreen() { isGameOver = true; cancelAnimationFrame(animationFrameId); animationFrameId = null; nameInputOverlay.style.display = 'flex'; canvas.style.visibility = 'hidden'; uiOverlay.style.visibility = 'hidden'; messageElement.style.display = 'none'; levelUpMessageElement.style.display = 'none'; bonusDisplayElement.style.display = 'none'; // Hide bonus display too
@@ -1266,6 +1378,20 @@ function gameLoop() {
 
         // --- Event Listeners ---
         // Keyboard Controls
+
+        const handleRestart = (e) => {
+    if (e.target.id === 'share-score-button') return; // Ignore share button clicks
+    e.stopPropagation();
+    if (isGameOver) {
+        showNameInputScreen();
+    }
+};
+messageElement.addEventListener('click', handleRestart);
+messageElement.addEventListener('touchend', (e) => {
+    if (e.target.id === 'share-score-button') return;
+    e.preventDefault();
+    handleRestart(e);
+});
 if (howToPlayButton && howToPlayModal) {
     const handleHowToPlayClick = (eventType) => {
         // NEW LOG: Confirm button click and check current fullscreen state
