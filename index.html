@@ -449,7 +449,30 @@ const NETLIFY_GET_SCORES_URL = '/.netlify/functions/get-scores';
                 bonusSynth = new Tone.Synth({ oscillator: { type: 'pulse', width: 0.4 }, envelope: { attack: 0.1, decay: 0.4, sustain: 0.2, release: 0.5 } }).toDestination();
                 powerupSynth = new Tone.Synth({ oscillator: { type: 'sine' }, volume: -6, envelope: { attack: 0.02, decay: 0.1, sustain: 0.2, release: 0.2 } }).toDestination();
                 soundsEnabled = true; console.log("Audio Initialized (Context running)"); } }
-                function playSound(type, note = 'C4', duration = '8n') { if (!soundsEnabled || !soundGloballyEnabled || typeof Tone === 'undefined') return; // ADD soundGloballyEnabled check // ... rest of playSound function try { const now = Tone.now(); if (type === 'good' && collectSynth) collectSynth.triggerAttackRelease('C5', '16n', now); else if (type === 'golden' && collectSynth) collectSynth.triggerAttackRelease('E5', '16n', now + 0.01); // ... rest of the conditions } catch (e) { console.error("Sound playback error:", e); } }
+                function playSound(type, note = 'C4', duration = '8n') {
+    // This is the ONLY line that should be different from your original playSound
+    if (!soundsEnabled || !soundGloballyEnabled || typeof Tone === 'undefined') return;
+
+    // The ENTIRE try...catch block below should be EXACTLY as it was
+    // in your previously working game, with all sound types included.
+    try {
+        const now = Tone.now();
+        if (type === 'good' && collectSynth) collectSynth.triggerAttackRelease('C5', '16n', now);
+        else if (type === 'golden' && collectSynth) collectSynth.triggerAttackRelease('E5', '16n', now + 0.01);
+        else if (type === 'superRare' && collectSynth) collectSynth.triggerAttackRelease('G5', '8n', now + 0.02);
+        else if (type === 'bad' && hurtSynth) hurtSynth.triggerAttackRelease('C3', '8n', now);
+        else if (type === 'miss' && hurtSynth) hurtSynth.triggerAttackRelease('A2', '16n', now);
+        else if (type === 'life' && powerupSynth) powerupSynth.triggerAttackRelease('A4', '8n', now);
+        else if (type === 'grow' && powerupSynth) powerupSynth.triggerAttackRelease('E4', '8n', now);
+        else if (type === 'shrink' && powerupSynth) powerupSynth.triggerAttackRelease('C4', '8n', now);
+        else if (type === 'levelUp' && levelUpSynth) levelUpSynth.triggerAttackRelease('G4', '4n', now);
+        else if (type === 'bonusStart' && bonusSynth) bonusSynth.triggerAttackRelease('C5', '2n', now);
+        else if (type === 'gameOver' && hurtSynth) hurtSynth.triggerAttackRelease('F2', '1n', now);
+        // Add any other custom sound types you had here
+    } catch (e) {
+        console.error("Sound playback error:", e);
+    }
+}
                 function initAudioInternal() {
     if (typeof Tone === 'undefined') return;
     if (collectSynth) return; // Already initialized
