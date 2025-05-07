@@ -1093,13 +1093,22 @@ if (closeHowToPlayModalButton && howToPlayModal) {
         window.addEventListener('load', () => {
             loadRemoteLeaderboard(); // Load leaderboard (tries server, falls back to local)
             resizeCanvas();          // Size canvas correctly
-            const savedSoundPreference = localStorage.getItem('bruinCatchSoundEnabled');
-if (savedSoundPreference !== null) {
-    soundGloballyEnabled = savedSoundPreference === 'true';
-}
-updateSoundButtonIcon();
-            showNameInputScreen();   // Show the initial screen
-        });
+            
+            if (howToPlayModal) {
+        originalModalParent = howToPlayModal.parentNode; // Should be <body>
+        console.log("Initial originalModalParent:", originalModalParent.tagName);
+    } else {
+        console.error("CRITICAL: howToPlayModal element not found on page load!");
+        originalModalParent = document.body; // Fallback, but indicates an HTML issue
+    }
+
+    const savedSoundPreference = localStorage.getItem('bruinCatchSoundEnabled');
+    if (savedSoundPreference !== null) {
+        soundGloballyEnabled = savedSoundPreference === 'true';
+    }
+    updateSoundButtonIcon();
+    showNameInputScreen();
+});
 
         console.log("Script End Reached - Basic Test");
 
