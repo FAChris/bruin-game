@@ -689,21 +689,37 @@ function initAudio() {
         soundToggleButton.innerHTML = soundGloballyEnabled ? '🔊' : '🔇';
     }
 }
-    function toggleGlobalSound() {
+  function toggleGlobalSound() {
     soundGloballyEnabled = !soundGloballyEnabled;
     localStorage.setItem('bruinCatchSoundEnabled', soundGloballyEnabled);
     updateSoundButtonIcon();
+    console.log('toggleGlobalSound - soundGloballyEnabled:', soundGloballyEnabled);
 
-    if (soundGloballyEnabled && typeof Tone !== 'undefined' && Tone.context.state !== 'running') {
-        Tone.start().then(() => {
-            console.log("Audio context started by toggle.");
-            // Re-initialize synths if they weren't created because sound was off initially
-            if (!collectSynth) { // Check if synths need initializing
-                 initAudioInternal();
-            }
-        }).catch(e => console.error("Audio context start failed on toggle:", e));
+    if (soundGloballyEnabled && typeof Tone !== 'undefined') {
+        // If unmuting and context isn't running, try to start it.
+        if (Tone.context.state !== 'running') {
+            Tone.start().then(() => {
+                console.log("Audio context started by toggle.");
+                // If synths weren't made yet (e.g., first game was muted), make them.
+                if (!collectSynth) {
+                    initAudioInternal(); // This sets soundsEnabled = true
+                } else {
+                    soundsEnabled = true; // Synths exist, ensure game sound flag is on
+                }
+            }).catch(e => {
+                console.error("Audio context start failed on toggle:", e);
+                soundsEnabled = false; // If context fails, sounds should be off
+            });
+        } else if (!collectSynth) { // Context is running, but synths weren't made
+            initAudioInternal(); // This sets soundsEnabled = true
+        } else { // Context is running AND synths exist
+            soundsEnabled = true; // We are unmuting, ensure game sound flag is on
+        }
+    } else if (!soundGloballyEnabled) {
+        // If muting, ensure the game's sound flag is off too.
+        soundsEnabled = false;
+        console.log('Sounds globally muted, soundsEnabled set to false.');
     }
-    // If soundGloballyEnabled is false, sounds will simply not play due to the check in playSound()
 }
         // --- Game Logic ---
         function checkLevelUp() { if (level - 1 < levelThresholds.length && score >= levelThresholds[level - 1]) { level++; baseGameSpeed += levelSpeedIncrease; // --- MODIFIED: Use constant for minimum interval ---
