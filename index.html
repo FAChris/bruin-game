@@ -334,7 +334,7 @@
 <div class="game-container" id="gameContainer" tabindex="0">
     <div id="name-input-overlay">
         <h2>Enter Player Name</h2>
-        <p>Move 🐻 (Arrows/Drag) to catch items.<br>Avoid red-sparkled items!<br>Reach the highest level!</p>
+        <p>Move 🐻 to catch falling items.<br>Avoid red-sparkled items!<br>Reach the highest level!</p>
         <p class="fullscreen-hint">(Press 'F' for Fullscreen)</p>
         <input type="text" id="player-name-input" placeholder="Bruin" maxlength="15">
         <div class="button-container">
@@ -421,6 +421,10 @@ const closeHowToPlayModalButton = document.getElementById('close-how-to-play-mod
         let isBonusRoundActive = false; let bonusRoundTimer = 0;
         let isPlayerBig = false; let playerBigTimer = 0;
         let isPlayerSmall = false; let playerSmallTimer = 0;
+        let isSlowMo = false;
+let slowmoTimer = 0;
+let isMagnet = false;
+let magnetTimer = 0;
         let passiveScoreTimer = 0;
         let notificationTimeoutId = null;
 
@@ -457,6 +461,21 @@ const NETLIFY_GET_SCORES_URL = '/.netlify/functions/get-scores';
         const lifeItemEmoji = '💙';
         const growItemEmoji = '🍄';
         const shrinkItemEmoji = '💧';
+        const magnetItemEmoji = '🧲';
+const magnetItemType = 'magnet';
+        const slowmoItemEmoji = '⏳';
+const slowmoItemType = 'slowmo';
+const slowmoDuration = 480; // Frames (~8 seconds at 60fps)
+const slowmoSpeedMultiplier = 0.5; // Reduce item speeds to 50%
+const SLOWMO_PARTICLE_COUNT = 15;
+const SLOWMO_PARTICLE_SPEED = 4;
+const slowmoParticleColor = '#4682B4'; // Steel Blue
+
+const magnetDuration = 480; // Frames (~8 seconds at 60fps)
+const magnetStrength = 2; // Pixels per frame good items move toward player
+const MAGNET_PARTICLE_COUNT = 15;
+const MAGNET_PARTICLE_SPEED = 4;
+const magnetParticleColor = '#A9A9A9'; // Dark Grey
 
         // Item Spawning Probabilities (Cumulative Thresholds)
         const SUPER_RARE_THRESHOLD = 0.01;  // 1% chance
@@ -465,6 +484,8 @@ const NETLIFY_GET_SCORES_URL = '/.netlify/functions/get-scores';
         const GROW_THRESHOLD = 0.040;       // 0.5% chance (cumulative 4.0%)
         const SHRINK_THRESHOLD = 0.045;     // 0.5% chance (cumulative 4.5%)
         const BAD_ITEM_THRESHOLD = 0.305;   // 26% chance (cumulative 30.5%)
+        const MAGNET_THRESHOLD = 0.050; // 0.5% chance (cumulative 5.0%)
+const SLOWMO_THRESHOLD = 0.055; // 0.5% chance (cumulative 5.5%)
         // Good items are the remaining percentage (100 - 30.5 = 69.5%)
 
         // Bonus Round Item Probabilities (Cumulative Thresholds)
@@ -599,6 +620,8 @@ function playSound(type, note = 'C4', duration = '8n') {
         else if (type === 'grow' && powerupSynth) powerupSynth.triggerAttackRelease('E4', '8n', now);
         else if (type === 'shrink' && powerupSynth) powerupSynth.triggerAttackRelease('C4', '8n', now);
         else if (type === 'levelUp' && levelUpSynth) levelUpSynth.triggerAttackRelease('G4', '4n', now);
+        else if (type === 'slowmo' && powerupSynth) powerupSynth.triggerAttackRelease('G4', '8n', now);
+        else if (type === 'magnet' && powerupSynth) powerupSynth.triggerAttackRelease('A4', '8n', now);
         else if (type === 'bonusStart' && bonusSynth) bonusSynth.triggerAttackRelease('C5', '2n', now);
         else if (type === 'gameOver' && hurtSynth) hurtSynth.triggerAttackRelease('F2', '1n', now);
     } catch (e) {
@@ -847,13 +870,112 @@ function closeHowToPlayModal() {
                  // playerHeight = this.currentHeight;
                 }, moveLeft: function() { this.dx = -playerSpeed; }, moveRight: function() { this.dx = playerSpeed; }, stop: function() { this.dx = 0; this.animFrame = 0; } }; }
 
-        function createItem(bonusActive = false) { let emoji; let type; let isGood = true; let isGolden = false; let isSuperRare = false; let itemSpeed = gameSpeed + Math.random() * 1.5; const rand = Math.random(); if (bonusActive) { // --- MODIFIED: Use constants for thresholds ---
-                if (rand < BONUS_SUPER_RARE_THRESHOLD) { emoji = superRareItemEmoji; type = 'superRare'; isSuperRare = true; itemSpeed = gameSpeed * superRareSpeedMultiplier + Math.random() * 2; } else if (rand < BONUS_GOLDEN_THRESHOLD) { emoji = goldenItemEmoji; type = 'golden'; isGolden = true; } else { emoji = goodItems[Math.floor(Math.random() * goodItems.length)]; type = 'good'; } } else { // --- MODIFIED: Use constants for thresholds & corrected logic ---
-                if (rand < SUPER_RARE_THRESHOLD) { emoji = superRareItemEmoji; type = 'superRare'; isSuperRare = true; itemSpeed = gameSpeed * superRareSpeedMultiplier + Math.random() * 2; } else if (rand < GOLDEN_THRESHOLD) { emoji = goldenItemEmoji; type = 'golden'; isGolden = true; } else if (rand < LIFE_THRESHOLD) { emoji = lifeItemEmoji; type = 'life'; } else if (rand < GROW_THRESHOLD) { emoji = growItemEmoji; type = 'grow'; } else if (rand < SHRINK_THRESHOLD) { // Corrected threshold logic
-                     emoji = shrinkItemEmoji; type = 'shrink'; } else if (rand < BAD_ITEM_THRESHOLD) { emoji = badItems[Math.floor(Math.random() * badItems.length)]; type = 'bad'; isGood = false; } else { emoji = goodItems[Math.floor(Math.random() * goodItems.length)]; type = 'good'; } } return { x: Math.random() * (canvas.width - itemSize), y: -itemSize, size: itemSize, emoji: emoji, type: type, isGood: isGood, isGolden: isGolden, isSuperRare: isSuperRare, speed: itemSpeed, update: function() { this.y += this.speed; }, draw: function() { ctx.save(); ctx.font = `${this.size}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; // --- MODIFIED: Use constants for effects ---
-                 if (this.type === 'bad' && Math.random() < BAD_ITEM_SPARKLE_CHANCE) { createParticle(this.x + this.size / 2, this.y + this.size / 2, BAD_SPARKLE_COUNT, badItemSparkleColor, BAD_SPARKLE_SPEED, 'radiate'); } else if (this.isGolden) { ctx.shadowColor = 'rgba(255, 223, 0, 0.8)'; ctx.shadowBlur = GOLDEN_ITEM_SHADOW_BLUR; } else if (this.isSuperRare) { ctx.shadowColor = 'rgba(200, 200, 255, 0.9)'; ctx.shadowBlur = SUPER_RARE_ITEM_SHADOW_BLUR; if (Math.random() < SUPER_RARE_SPARKLE_CHANCE) { createParticle(this.x + this.size / 2, this.y + this.size / 2, SUPER_RARE_SPARKLE_COUNT, superRareParticleColor, SUPER_RARE_SPARKLE_SPEED, 'radiate'); } } else if (this.type === 'life' || this.type === 'grow' || this.type === 'shrink') { // Group power-ups visually
-                     if(this.type === 'life') ctx.shadowColor = 'rgba(0, 191, 255, 0.7)'; else if (this.type === 'grow') ctx.shadowColor = 'rgba(50, 205, 50, 0.7)'; else ctx.shadowColor = 'rgba(138, 43, 226, 0.7)'; ctx.shadowBlur = POWERUP_ITEM_SHADOW_BLUR; } ctx.fillText(this.emoji, this.x + this.size / 2, this.y + this.size / 2); ctx.restore(); } }; }
-
+function createItem(bonusActive = false) {
+    let emoji;
+    let type;
+    let isGood = true;
+    let isGolden = false;
+    let isSuperRare = false;
+    let itemSpeed = gameSpeed + Math.random() * 1.5;
+    const rand = Math.random();
+    if (bonusActive) {
+        if (rand < BONUS_SUPER_RARE_THRESHOLD) {
+            emoji = superRareItemEmoji;
+            type = 'superRare';
+            isSuperRare = true;
+            itemSpeed = gameSpeed * superRareSpeedMultiplier + Math.random() * 2;
+        } else if (rand < BONUS_GOLDEN_THRESHOLD) {
+            emoji = goldenItemEmoji;
+            type = 'golden';
+            isGolden = true;
+        } else {
+            emoji = goodItems[Math.floor(Math.random() * goodItems.length)];
+            type = 'good';
+        }
+    } else {
+        if (rand < SUPER_RARE_THRESHOLD) {
+            emoji = superRareItemEmoji;
+            type = 'superRare';
+            isSuperRare = true;
+            itemSpeed = gameSpeed * superRareSpeedMultiplier + Math.random() * 2;
+        } else if (rand < GOLDEN_THRESHOLD) {
+            emoji = goldenItemEmoji;
+            type = 'golden';
+            isGolden = true;
+        } else if (rand < LIFE_THRESHOLD) {
+            emoji = lifeItemEmoji;
+            type = 'life';
+        } else if (rand < GROW_THRESHOLD) {
+            emoji = growItemEmoji;
+            type = 'grow';
+        } else if (rand < SHRINK_THRESHOLD) {
+            emoji = shrinkItemEmoji;
+            type = 'shrink';
+        } else if (rand < MAGNET_THRESHOLD) {
+            emoji = magnetItemEmoji;
+            type = magnetItemType;
+        } else if (rand < SLOWMO_THRESHOLD) {
+            emoji = slowmoItemEmoji;
+            type = slowmoItemType;
+        } else if (rand < BAD_ITEM_THRESHOLD) {
+            emoji = badItems[Math.floor(Math.random() * badItems.length)];
+            type = 'bad';
+            isGood = false;
+        } else {
+            emoji = goodItems[Math.floor(Math.random() * goodItems.length)];
+            type = 'good';
+        }
+    }
+    return {
+        x: Math.random() * (canvas.width - itemSize),
+        y: -itemSize,
+        size: itemSize,
+        emoji: emoji,
+        type: type,
+        isGood: isGood,
+        isGolden: isGolden,
+        isSuperRare: isSuperRare,
+        speed: itemSpeed,
+        update: function() {
+            this.y += this.speed;
+            // Apply magnet effect to good items
+            if (isMagnet && this.isGood && player) {
+                const dx = (player.x + player.currentWidth / 2) - (this.x + this.size / 2);
+                const distance = Math.abs(dx);
+                if (distance > 5) { // Avoid jittering when very close
+                    this.x += (dx > 0 ? magnetStrength : -magnetStrength);
+                }
+            }
+        },
+        draw: function() {
+            ctx.save();
+            ctx.font = `${this.size}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            if (this.type === 'bad' && Math.random() < BAD_ITEM_SPARKLE_CHANCE) {
+                createParticle(this.x + this.size / 2, this.y + this.size / 2, BAD_SPARKLE_COUNT, badItemSparkleColor, BAD_SPARKLE_SPEED, 'radiate');
+            } else if (this.isGolden) {
+                ctx.shadowColor = 'rgba(255, 223, 0, 0.8)';
+                ctx.shadowBlur = GOLDEN_ITEM_SHADOW_BLUR;
+            } else if (this.isSuperRare) {
+                ctx.shadowColor = 'rgba(200, 200, 255, 0.9)';
+                ctx.shadowBlur = SUPER_RARE_ITEM_SHADOW_BLUR;
+                if (Math.random() < SUPER_RARE_SPARKLE_CHANCE) {
+                    createParticle(this.x + this.size / 2, this.y + this.size / 2, SUPER_RARE_SPARKLE_COUNT, superRareParticleColor, SUPER_RARE_SPARKLE_SPEED, 'radiate');
+                }
+            } else if (this.type === 'life' || this.type === 'grow' || this.type === 'shrink' || this.type === slowmoItemType || this.type === magnetItemType) {
+                if (this.type === 'life') ctx.shadowColor = 'rgba(0, 191, 255, 0.7)';
+                else if (this.type === 'grow') ctx.shadowColor = 'rgba(50, 205, 50, 0.7)';
+                else if (this.type === 'shrink') ctx.shadowColor = 'rgba(138, 43, 226, 0.7)';
+                else if (this.type === slowmoItemType) ctx.shadowColor = 'rgba(70, 130, 180, 0.7)';
+                else if (this.type === magnetItemType) ctx.shadowColor = 'rgba(169, 169, 169, 0.7)';
+                ctx.shadowBlur = POWERUP_ITEM_SHADOW_BLUR;
+            }
+            ctx.fillText(this.emoji, this.x + this.size / 2, this.y + this.size / 2);
+            ctx.restore();
+        }
+    };
+}
 function updateSoundButtonIcon() {
     if (soundToggleButton) {
         soundToggleButton.innerHTML = soundGloballyEnabled ? '🔊' : '🔇';
@@ -900,9 +1022,66 @@ function toggleGlobalSound() {
              if ( player && item.x < player.x + player.currentWidth && item.x + item.size > player.x && item.y + item.size > player.y && // Basic overlap X and bottom edge below player top
                  item.y < player.y + player.currentHeight // Item top edge above player bottom
                 ) { let particleX = item.x + item.size / 2; let particleY = item.y + item.size / 2; let scoreToAdd = 0; let soundType = 'good'; let notificationText = null; // --- MODIFIED: Use constants for particle effects ---
-                 switch(item.type) { case 'superRare': scoreToAdd = superRareItemValue; createParticle(particleX, particleY, SUPER_RARE_PARTICLE_COUNT, superRareParticleColor, SUPER_RARE_PARTICLE_SPEED, 'burst'); soundType = 'superRare'; notificationText = "DIAMOND!"; break; case 'golden': scoreToAdd = goldenItemValue; createParticle(particleX, particleY, GOLDEN_PARTICLE_COUNT, goldenParticleColor, GOLDEN_PARTICLE_SPEED, 'burst'); soundType = 'golden'; notificationText = "Golden Star!"; break; case 'good': scoreToAdd = itemValue; createParticle(particleX, particleY, GOOD_PARTICLE_COUNT, goodParticleColor, GOOD_PARTICLE_SPEED, 'upward'); soundType = 'good'; break; case 'life': lives++; createParticle(particleX, particleY, LIFE_PARTICLE_COUNT, lifeParticleColor, LIFE_PARTICLE_SPEED, 'upward'); soundType = 'life'; notificationText = "+1 Life!"; break; case 'grow': if (!isPlayerSmall) player.setSize('big'); createParticle(particleX, particleY, GROW_PARTICLE_COUNT, growParticleColor, GROW_PARTICLE_SPEED, 'burst'); soundType = 'grow'; notificationText = "Grew Big!"; break; case 'shrink': if (!isPlayerBig) player.setSize('small'); createParticle(particleX, particleY, SHRINK_PARTICLE_COUNT, shrinkParticleColor, SHRINK_PARTICLE_SPEED, 'burst'); soundType = 'shrink'; notificationText = "Shrunk Small!"; break; case 'bad': lives--; score += penaltyValue; // Apply penalty (if any)
-                      createParticle(particleX, particleY, BAD_HIT_PARTICLE_COUNT, badParticleColor, BAD_HIT_PARTICLE_SPEED, 'burst'); soundType = 'bad'; comboCount = 0; comboMultiplier = 1; // Reset combo
-                      break; } // Score and Combo Logic
+switch(item.type) {
+    case 'superRare':
+        scoreToAdd = superRareItemValue;
+        createParticle(particleX, particleY, SUPER_RARE_PARTICLE_COUNT, superRareParticleColor, SUPER_RARE_PARTICLE_SPEED, 'burst');
+        soundType = 'superRare';
+        notificationText = "DIAMOND!";
+        break;
+    case 'golden':
+        scoreToAdd = goldenItemValue;
+        createParticle(particleX, particleY, GOLDEN_PARTICLE_COUNT, goldenParticleColor, GOLDEN_PARTICLE_SPEED, 'burst');
+        soundType = 'golden';
+        notificationText = "Golden Star!";
+        break;
+    case 'good':
+        scoreToAdd = itemValue;
+        createParticle(particleX, particleY, GOOD_PARTICLE_COUNT, goodParticleColor, GOOD_PARTICLE_SPEED, 'upward');
+        soundType = 'good';
+        break;
+    case 'life':
+        lives++;
+        createParticle(particleX, particleY, LIFE_PARTICLE_COUNT, lifeParticleColor, LIFE_PARTICLE_SPEED, 'upward');
+        soundType = 'life';
+        notificationText = "+1 Life!";
+        break;
+    case 'grow':
+        if (!isPlayerSmall) player.setSize('big');
+        createParticle(particleX, particleY, GROW_PARTICLE_COUNT, growParticleColor, GROW_PARTICLE_SPEED, 'burst');
+        soundType = 'grow';
+        notificationText = "Grew Big!";
+        break;
+    case 'shrink':
+        if (!isPlayerBig) player.setSize('small');
+        createParticle(particleX, particleY, SHRINK_PARTICLE_COUNT, shrinkParticleColor, SHRINK_PARTICLE_SPEED, 'burst');
+        soundType = 'shrink';
+        notificationText = "Shrunk Small!";
+        break;
+    case 'slowmo':
+        isSlowMo = true;
+        slowmoTimer = slowmoDuration;
+        items.forEach(item => item.speed *= slowmoSpeedMultiplier); // Slow existing items
+        createParticle(particleX, particleY, SLOWMO_PARTICLE_COUNT, slowmoParticleColor, SLOWMO_PARTICLE_SPEED, 'burst');
+        soundType = 'slowmo';
+        notificationText = "Slow-Mo!";
+        break;
+    case 'magnet':
+        isMagnet = true;
+        magnetTimer = magnetDuration;
+        createParticle(particleX, particleY, MAGNET_PARTICLE_COUNT, magnetParticleColor, MAGNET_PARTICLE_SPEED, 'burst');
+        soundType = 'magnet';
+        notificationText = "Magnet Activated!";
+        break;
+    case 'bad':
+        lives--;
+        score += penaltyValue;
+        createParticle(particleX, particleY, BAD_HIT_PARTICLE_COUNT, badParticleColor, BAD_HIT_PARTICLE_SPEED, 'burst');
+        soundType = 'bad';
+        comboCount = 0;
+        comboMultiplier = 1;
+        break;
+}
                  if (scoreToAdd > 0) { scoreToAdd *= comboMultiplier; score += scoreToAdd; comboCount++; if (comboCount >= comboThreshold) { comboMultiplier = Math.min(maxComboMultiplier, Math.floor(comboCount / comboThreshold) + 1); } } else if (item.type !== 'bad') { // Reset combo if non-scoring item (e.g., powerup) is caught, but not for bad items (already handled)
                      comboCount = 0; comboMultiplier = 1; } // Post-catch updates
                  playSound(soundType); if (notificationText) showItemNotification(notificationText); score = Math.max(0, score); // Prevent negative score
@@ -921,6 +1100,26 @@ function toggleGlobalSound() {
         function updateBonusRound() { if (!isBonusRoundActive) return; bonusRoundTimer--; if (bonusRoundTimer <= 0) { isBonusRoundActive = false; bonusDisplayElement.style.display = 'none'; console.log("BONUS ROUND ENDED!"); itemSpawnInterval = baseItemSpawnInterval; // Restore normal spawn interval
              gameSpeed = baseGameSpeed; // Restore normal speed (if it was changed)
              } }
+        function updateSlowMo() {
+    if (!isSlowMo) return;
+    slowmoTimer--;
+    if (slowmoTimer <= 0) {
+        isSlowMo = false;
+        items.forEach(item => item.speed /= slowmoSpeedMultiplier); // Restore speeds
+        console.log("Slow-Mo Ended");
+        showItemNotification("Slow-Mo Ended!");
+    }
+}
+
+function updateMagnet() {
+    if (!isMagnet) return;
+    magnetTimer--;
+    if (magnetTimer <= 0) {
+        isMagnet = false;
+        console.log("Magnet Ended");
+        showItemNotification("Magnet Deactivated!");
+    }
+}
         function showItemNotification(text) { if (!itemNotificationElement) return; itemNotificationElement.textContent = text; itemNotificationElement.style.display = 'block'; clearTimeout(notificationTimeoutId); // Clear previous timeout
              // --- MODIFIED: Use constant for duration ---
              notificationTimeoutId = setTimeout(() => { itemNotificationElement.style.display = 'none'; }, ITEM_NOTIFICATION_DURATION); // Restart fadeout animation
@@ -935,15 +1134,46 @@ function toggleGlobalSound() {
              items.forEach(item => item.draw()); if (player) player.draw(); handleParticles(); }
 
         // --- Game Loop & State Management ---
-        function gameLoop() { if (isGameOver) { cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } // Updates
-             if (player) player.update(); handleItems(); // IMPORTANT: handleItems checks for gameOver
-             if (isGameOver) { // Check again in case handleItems triggered game over
-                 cancelAnimationFrame(animationFrameId); animationFrameId = null; return; } handleParticles(); updateBonusRound(); // Passive Score Calculation
-             passiveScoreTimer++; if (passiveScoreTimer >= passiveScoreInterval) { passiveScoreTimer = 0; let passiveScoreToAdd = 0; if (isPlayerSmall) { passiveScoreToAdd = smallPassiveScore; } else if (isPlayerBig) { passiveScoreToAdd = bigPassiveScore; } if (passiveScoreToAdd > 0) { score += passiveScoreToAdd; score = Math.max(0, score); // Prevent negative
-                     scoreElement.textContent = `Score: ${score}`; checkLevelUp(); // Check level up after passive score update
-                      } } // Drawing
-             drawGame(); // Next Frame
-             animationFrameId = requestAnimationFrame(gameLoop); }
+function gameLoop() {
+    if (isGameOver) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+        return;
+    }
+    // Updates
+    if (player) player.update();
+    handleItems();
+    if (isGameOver) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+        return;
+    }
+    handleParticles();
+    updateSlowMo();
+    updateMagnet();
+    updateBonusRound();
+    // Passive Score Calculation
+    passiveScoreTimer++;
+    if (passiveScoreTimer >= passiveScoreInterval) {
+        passiveScoreTimer = 0;
+        let passiveScoreToAdd = 0;
+        if (isPlayerSmall) {
+            passiveScoreToAdd = smallPassiveScore;
+        } else if (isPlayerBig) {
+            passiveScoreToAdd = bigPassiveScore;
+        }
+        if (passiveScoreToAdd > 0) {
+            score += passiveScoreToAdd;
+            score = Math.max(0, score);
+            scoreElement.textContent = `Score: ${score}`;
+            checkLevelUp();
+        }
+    }
+    // Drawing
+    drawGame();
+    // Next Frame
+    animationFrameId = requestAnimationFrame(gameLoop);
+}
         function gameOver() { if (isGameOver) return; // Prevent multiple calls
              isGameOver = true; console.log("Game Over Triggered"); cancelAnimationFrame(animationFrameId); animationFrameId = null; saveToLeaderboard(); // Save score (tries server first, then local)
              const safePlayerName = (playerName || "Bruin").replace(/</g, "&lt;").replace(/>/g, "&gt;"); // Sanitize name for display
