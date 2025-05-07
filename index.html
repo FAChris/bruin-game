@@ -412,6 +412,8 @@ const closeHowToPlayModalButton = document.getElementById('close-how-to-play-mod
         let baseItemSpawnInterval = 95; let itemSpawnInterval = baseItemSpawnInterval;
         let itemTimer = 0;
         let isGameOver = true;
+        let originalModalParent; // Will be set once the DOM is loaded
+        let modalWasMovedForFullscreen = false;
         let animationFrameId = null;
         let touchStartX = null; let playerStartX = null; let isDragging = false;
         let comboCount = 0;
@@ -618,7 +620,55 @@ function initAudioInternal() {
     soundsEnabled = true; 
     console.log("Audio Synths Initialized by initAudioInternal(). soundsEnabled: true");
 }
+        
+function openHowToPlayModal() {
+    if (!howToPlayModal || !gameContainer || !document.body) {
+        console.error("Modal, gameContainer, or body not found in openHowToPlayModal");
+        return;
+    }
 
+    // Ensure originalModalParent is correctly captured if not already
+    // This should ideally be the body if the modal is initially a direct child of body.
+    if (!originalModalParent && howToPlayModal.parentNode) {
+        originalModalParent = howToPlayModal.parentNode;
+    } else if (!originalModalParent) {
+        originalModalParent = document.body; // Fallback
+    }
+    console.log("openHowToPlayModal: Original parent is", originalModalParent.tagName || originalModalParent);
+
+
+    if (document.fullscreenElement === gameContainer) {
+        // If game is fullscreen, modal MUST be a child of gameContainer to be visible
+        if (howToPlayModal.parentNode !== gameContainer) {
+            console.log("Game is fullscreen. Moving modal INTO gameContainer.");
+            gameContainer.appendChild(howToPlayModal);
+            modalWasMovedForFullscreen = true;
+        }
+    } else {
+        // If game is NOT fullscreen, modal should be a child of its original parent (likely body)
+        if (howToPlayModal.parentNode !== originalModalParent && originalModalParent) {
+            console.log("Game NOT fullscreen. Moving modal to original parent:", originalModalParent.tagName);
+            originalModalParent.appendChild(howToPlayModal);
+        }
+        modalWasMovedForFullscreen = false;
+    }
+    howToPlayModal.style.display = 'flex';
+    console.log("Modal display set to flex. Current parent:", howToPlayModal.parentNode ? howToPlayModal.parentNode.tagName : "no parent");
+}
+
+// Function to close the "How to Play" modal
+function closeHowToPlayModal() {
+    if (!howToPlayModal) return;
+    howToPlayModal.style.display = 'none';
+    console.log("closeHowToPlayModal: Modal hidden.");
+
+    // If the modal was moved for fullscreen and is currently in gameContainer, move it back
+    if (modalWasMovedForFullscreen && howToPlayModal.parentNode === gameContainer && originalModalParent) {
+        console.log("Closing modal that was in fullscreen gameContainer. Moving back to original parent:", originalModalParent.tagName);
+        originalModalParent.appendChild(howToPlayModal);
+    }
+    modalWasMovedForFullscreen = false; // Reset flag on close
+}
 
 // --- Modify initAudio() slightly ---
                     
@@ -920,6 +970,38 @@ function toggleGlobalSound() {
         howToPlayModal.style.display = 'flex';
     });
 }
+
+        document.addEventListener('fullscreenchange', () => {
+    if (!howToPlayModal || !gameContainer) {
+        console.warn("fullscreenchange: Modal or gameContainer is null.");
+        return;
+    }
+    // Ensure originalModalParent is known
+    if (!originalModalParent && howToPlayModal.parentNode) {
+        originalModalParent = howToPlayModal.parentNode;
+    } else if (!originalModalParent) {
+        originalModalParent = document.body; // Fallback
+    }
+
+    const isCurrentlyFullscreen = document.fullscreenElement === gameContainer;
+    const modalIsOpen = howToPlayModal.style.display === 'flex';
+
+    console.log(`Fullscreen changed. Is fullscreen: ${isCurrentlyFullscreen}, Modal open: ${modalIsOpen}, Modal parent: ${howToPlayModal.parentNode ? howToPlayModal.parentNode.id : 'none'}`);
+
+    if (!isCurrentlyFullscreen) { // Exited fullscreen
+        if (modalWasMovedForFullscreen && howToPlayModal.parentNode === gameContainer && originalModalParent) {
+            console.log("Exited fullscreen. Modal was in gameContainer. Moving back to original parent:", originalModalParent.tagName);
+            originalModalParent.appendChild(howToPlayModal);
+        }
+        modalWasMovedForFullscreen = false; // Always reset this when exiting fullscreen
+    } else { // Entered fullscreen (or already in it and something changed)
+        if (modalIsOpen && howToPlayModal.parentNode !== gameContainer) {
+            console.log("Entered fullscreen & modal is open but not in gameContainer. Moving modal INTO gameContainer.");
+            gameContainer.appendChild(howToPlayModal);
+            modalWasMovedForFullscreen = true;
+        }
+    }
+});
 
 if (closeHowToPlayModalButton && howToPlayModal) {
     closeHowToPlayModalButton.addEventListener('click', () => {
