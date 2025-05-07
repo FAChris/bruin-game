@@ -1839,6 +1839,8 @@ function gameLoop() {
         // --- Event Listeners ---
         // Keyboard Controls
 
+// --- Event Listeners ---
+// Keyboard Controls
 const handleRestart = (e) => {
     if (e.target.id === 'share-score-button') return; // Ignore share button clicks
     e.stopPropagation();
@@ -1852,9 +1854,9 @@ messageElement.addEventListener('touchend', (e) => {
     e.preventDefault();
     handleRestart(e);
 });
-if (howToPlayButton && howToPlayModal) {
+
+if (howToPlayButton && howToPlayModal && closeHowToPlayModalButton) {
     const handleHowToPlayClick = (eventType) => {
-        // NEW LOG: Confirm button click and check current fullscreen state
         console.log(`"How to Play" button event: ${eventType}. Fullscreen element:`, document.fullscreenElement ? document.fullscreenElement.id : "none");
         openHowToPlayModal();
     };
@@ -1864,10 +1866,24 @@ if (howToPlayButton && howToPlayModal) {
         e.preventDefault();
         handleHowToPlayClick('touchend');
     });
-    console.log("Event listeners for 'howToPlayButton' attached."); // Confirm listener setup
+
+    closeHowToPlayModalButton.addEventListener('click', closeHowToPlayModal);
+    closeHowToPlayModalButton.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        closeHowToPlayModal();
+    });
+
+    howToPlayModal.addEventListener('click', (event) => {
+        if (event.target === howToPlayModal) {
+            closeHowToPlayModal();
+        }
+    });
+
+    console.log("Event listeners for 'howToPlayButton' attached.");
 } else {
     if (!howToPlayButton) console.error("'howToPlayButton' not found during listener attachment.");
     if (!howToPlayModal) console.error("'howToPlayModal' not found during listener attachment.");
+    if (!closeHowToPlayModalButton) console.error("'closeHowToPlayModalButton' not found during listener attachment.");
 }
 
 const achievementsButton = document.getElementById('achievements-button');
@@ -1896,106 +1912,149 @@ if (achievementsButton && achievementsModal && closeAchievementsButton) {
     console.warn("Achievements elements not found: button:", !!achievementsButton, "modal:", !!achievementsModal, "closeButton:", !!closeAchievementsButton);
 }
 
-if (closeHowToPlayModalButton && howToPlayModal) {
-    closeHowToPlayModalButton.addEventListener('click', () => {
-        howToPlayModal.style.display = 'none';
+if (fullscreenButton) {
+    fullscreenButton.addEventListener('click', () => {
+        console.log('Fullscreen button clicked');
+        toggleFullScreen();
     });
-    closeHowToPlayModalButton.addEventListener('touchend', (e) => { // For mobile
+    fullscreenButton.addEventListener('touchend', (e) => {
         e.preventDefault();
-        howToPlayModal.style.display = 'none';
-    });
-}
-        if (howToPlayModal) {
-    howToPlayModal.addEventListener('click', (event) => {
-        if (event.target === howToPlayModal) { // Clicked on the overlay itself
-            howToPlayModal.style.display = 'none';
-        }
-    });
-}
-
-
-if (achievementsButton && achievementsModal && closeAchievementsButton) {
-    achievementsButton.addEventListener('click', () => {
-        showAchievementsModal();
-    });
-    achievementsButton.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        showAchievementsModal();
-    });
-    closeAchievementsButton.addEventListener('click', closeAchievementsModal);
-    closeAchievementsButton.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        closeAchievementsModal();
-    });
-    achievementsModal.addEventListener('click', (e) => {
-        if (e.target === achievementsModal) {
-            closeAchievementsModal();
-        }
+        console.log('Fullscreen button touched');
+        toggleFullScreen();
     });
 } else {
-    console.warn("Achievements elements not found: button:", !!achievementsButton, "modal:", !!achievementsModal, "closeButton:", !!closeAchievementsButton);
+    console.warn('Fullscreen button not found');
 }
-                if (fullscreenButton) {
-            fullscreenButton.addEventListener('click', () => {
-                console.log('Fullscreen button clicked'); // For debugging
-                toggleFullScreen(); // Call the existing function
-            });
-            // Optional: Add touchend for better mobile responsiveness
-             fullscreenButton.addEventListener('touchend', (e) => {
-                 e.preventDefault(); // Prevent potential double action / zoom
-                 console.log('Fullscreen button touched');
-                 toggleFullScreen();
-             });
-        } else {
-            console.warn('Fullscreen button not found');
-        }
-    if (soundToggleButton) {
+
+if (soundToggleButton) {
     soundToggleButton.addEventListener('click', toggleGlobalSound);
-    soundToggleButton.addEventListener('touchend', (e) => { // For mobile
+    soundToggleButton.addEventListener('touchend', (e) => {
         e.preventDefault();
         toggleGlobalSound();
     });
 }
-        
-         window.addEventListener('keydown', (e) => { // Fullscreen Toggle
-             if (e.key.toLowerCase() === 'f') { try { gameContainer.focus(); // Attempt to focus the container first
-                 } catch(focusErr) { console.warn("Could not focus game container:", focusErr); } toggleFullScreen(); // Then attempt fullscreen
-                 e.preventDefault(); // Prevent default browser action for 'f'
-                 return; } // Start Game from Name Screen (if input not focused)
-             if (isGameOver && nameInputOverlay.style.display === 'flex' && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') && document.activeElement !== playerNameInput) { e.preventDefault(); startGameButton.click(); return; } // Gameplay Controls (only if game running and player exists)
-             if (isGameOver || !player) return; if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') { player.moveLeft(); } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') { player.moveRight(); } });
-         window.addEventListener('keyup', (e) => { if (isGameOver || !player) return; // Stop movement only if the corresponding key is released
-             if (((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') && player.dx < 0) || ((e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') && player.dx > 0)) { player.stop(); } });
-         // Touch Controls
-         gameContainer.addEventListener('touchstart', (e) => { if (isGameOver) return; // Don't prevent default if game over (allow clicks on message)
-             if (e.touches.length > 0 && player) { e.preventDefault(); // Only prevent default if starting drag
-                 isDragging = true; touchStartX = e.touches[0].clientX; playerStartX = player.x; gameContainer.style.cursor = 'grabbing'; } }, { passive: false });
-         gameContainer.addEventListener('touchmove', (e) => { if (!isDragging || isGameOver || !player) return; e.preventDefault(); // Prevent scrolling while dragging
-             if (e.touches.length > 0) { const touchCurrentX = e.touches[0].clientX; const deltaX = touchCurrentX - touchStartX; let newPlayerX = playerStartX + deltaX; // Clamp position within canvas bounds
-                 newPlayerX = Math.max(0, Math.min(canvas.width - player.currentWidth, newPlayerX)); player.x = newPlayerX; } }, { passive: false });
-         const stopTouchDragging = (e) => { if (isDragging) { // Check if the touch end/cancel is on the game over message
-                 const targetIsMessage = messageElement.contains(e.target); if(isGameOver && targetIsMessage) { // Allow restart click/tap through
-                     // No action needed here, the message listener will handle it
-                 } isDragging = false; touchStartX = null; playerStartX = null; gameContainer.style.cursor = 'grab'; } };
-         gameContainer.addEventListener('touchend', stopTouchDragging);
-         gameContainer.addEventListener('touchcancel', stopTouchDragging);
-         // Mouse Controls
-         gameContainer.addEventListener('mousedown', (e) => { if (isGameOver) return; // Allow clicks on message
-             if (player) { isDragging = true; touchStartX = e.clientX; playerStartX = player.x; gameContainer.style.cursor = 'grabbing'; } });
-         gameContainer.addEventListener('mousemove', (e) => { if (!isDragging || isGameOver || !player) return; const touchCurrentX = e.clientX; const deltaX = touchCurrentX - touchStartX; let newPlayerX = playerStartX + deltaX; newPlayerX = Math.max(0, Math.min(canvas.width - player.currentWidth, newPlayerX)); player.x = newPlayerX; });
-         const stopMouseDragging = () => { if (isDragging) { isDragging = false; touchStartX = null; playerStartX = null; gameContainer.style.cursor = 'grab'; } };
-         window.addEventListener('mouseup', stopMouseDragging); // Listen on window to catch mouseup outside container
-         gameContainer.addEventListener('mouseleave', stopMouseDragging);
-          // Start Game Button / Input Listeners
-          const handleStartGame = () => { playerName = playerNameInput.value.trim().substring(0, 15) || "Bruin"; // Trim and limit length
-             nameInputOverlay.style.display = 'none'; initializeGame(); };
-         startGameButton.addEventListener('click', handleStartGame);
-         // Use touchend for buttons/inputs on mobile to avoid delay and potential double-tap issues
-         startGameButton.addEventListener('touchend', (e) => { e.preventDefault(); handleStartGame(); });
-         playerNameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') { handleStartGame(); } });
-         playerNameInput.addEventListener('touchstart', (e) => { // Help focus input on touch devices
-             e.stopPropagation(); // Prevent game container touchstart? Maybe not needed.
-             playerNameInput.focus(); });
+
+window.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 'f') {
+        try {
+            gameContainer.focus();
+        } catch (focusErr) {
+            console.warn("Could not focus game container:", focusErr);
+        }
+        toggleFullScreen();
+        e.preventDefault();
+        return;
+    }
+    if (isGameOver && nameInputOverlay.style.display === 'flex' && (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') && document.activeElement !== playerNameInput) {
+        e.preventDefault();
+        startGameButton.click();
+        return;
+    }
+    if (isGameOver || !player) return;
+    if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') {
+        player.moveLeft();
+    } else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') {
+        player.moveRight();
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    if (isGameOver || !player) return;
+    if (((e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') && player.dx < 0) || ((e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') && player.dx > 0)) {
+        player.stop();
+    }
+});
+
+// Touch Controls
+gameContainer.addEventListener('touchstart', (e) => {
+    if (isGameOver) return;
+    if (e.touches.length > 0 && player) {
+        e.preventDefault();
+        isDragging = true;
+        touchStartX = e.touches[0].clientX;
+        playerStartX = player.x;
+        gameContainer.style.cursor = 'grabbing';
+    }
+}, { passive: false });
+
+gameContainer.addEventListener('touchmove', (e) => {
+    if (!isDragging || isGameOver || !player) return;
+    e.preventDefault();
+    if (e.touches.length > 0) {
+        const touchCurrentX = e.touches[0].clientX;
+        const deltaX = touchCurrentX - touchStartX;
+        let newPlayerX = playerStartX + deltaX;
+        newPlayerX = Math.max(0, Math.min(canvas.width - player.currentWidth, newPlayerX));
+        player.x = newPlayerX;
+    }
+}, { passive: false });
+
+const stopTouchDragging = (e) => {
+    if (isDragging) {
+        const targetIsMessage = messageElement.contains(e.target);
+        if (isGameOver && targetIsMessage) {
+            // Allow restart click/tap through
+        }
+        isDragging = false;
+        touchStartX = null;
+        playerStartX = null;
+        gameContainer.style.cursor = 'grab';
+    }
+};
+gameContainer.addEventListener('touchend', stopTouchDragging);
+gameContainer.addEventListener('touchcancel', stopTouchDragging);
+
+// Mouse Controls
+gameContainer.addEventListener('mousedown', (e) => {
+    if (isGameOver) return;
+    if (player) {
+        isDragging = true;
+        touchStartX = e.clientX;
+        playerStartX = player.x;
+        gameContainer.style.cursor = 'grabbing';
+    }
+});
+
+gameContainer.addEventListener('mousemove', (e) => {
+    if (!isDragging || isGameOver || !player) return;
+    const touchCurrentX = e.clientX;
+    const deltaX = touchCurrentX - touchStartX;
+    let newPlayerX = playerStartX + deltaX;
+    newPlayerX = Math.max(0, Math.min(canvas.width - player.currentWidth, newPlayerX));
+    player.x = newPlayerX;
+});
+
+const stopMouseDragging = () => {
+    if (isDragging) {
+        isDragging = false;
+        touchStartX = null;
+        playerStartX = null;
+        gameContainer.style.cursor = 'grab';
+    }
+};
+window.addEventListener('mouseup', stopMouseDragging);
+gameContainer.addEventListener('mouseleave', stopMouseDragging);
+
+// Start Game Button / Input Listeners
+const handleStartGame = () => {
+    playerName = playerNameInput.value.trim().substring(0, 15) || "Bruin";
+    nameInputOverlay.style.display = 'none';
+    initializeGame();
+};
+startGameButton.addEventListener('click', handleStartGame);
+startGameButton.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    handleStartGame();
+});
+playerNameInput.addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') {
+        handleStartGame();
+    }
+});
+playerNameInput.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+    playerNameInput.focus();
+});
           // Restart Game Message Listeners
 
         // Fullscreen Toggle Function
