@@ -434,8 +434,55 @@ const NETLIFY_GET_SCORES_URL = '/.netlify/functions/get-scores';
         // --- Tone.js Setup ---
         let jumpSynth, collectSynth, hurtSynth, levelUpSynth, bonusSynth, powerupSynth;
         let soundsEnabled = false;
-        function initAudio() { if (soundsEnabled || typeof Tone === 'undefined') return; if (Tone.context.state !== 'running') { Tone.start().then(() => { if (soundsEnabled) return; // Double check after promise resolves
-                jumpSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 } }).toDestination();
+function initAudio() {
+    // Check if Tone.js library is loaded. If not, sound cannot be enabled.
+    if (typeof Tone === 'undefined') {
+        console.log("Tone is undefined in initAudio.");
+        soundsEnabled = false; // Ensure game knows sounds are not ready
+        return; // Exit the function
+    }
+
+    // Check if sound is globally disabled by the user.
+    // If so, ensure game knows sounds are not ready and exit.
+    if (!soundGloballyEnabled) {
+        soundsEnabled = false; // Ensure game knows sounds are not ready
+        console.log("Audio globally disabled, initAudio() did not initialize synths.");
+        return; // Exit the function
+    }
+
+    // If we reach here, it means:
+    // 1. Tone.js IS loaded.
+    // 2. Sound IS globally enabled by the user.
+    console.log("initAudio() called, soundGloballyEnabled is true.");
+
+    // Check if the Tone.js audio context (the core sound engine) is running.
+    if (Tone.context.state !== 'running') {
+        // If context is not running, attempt to start it.
+        // This is usually required once per page load due to browser restrictions.
+        Tone.start().then(() => {
+            console.log("Audio Context Started by initAudio()");
+            // Once context is started, create the actual sound synthesizers.
+            initAudioInternal(); // This function creates synths and sets soundsEnabled = true
+        }).catch(e => {
+            // If starting the context fails (e.g., browser issue), log error and disable sounds.
+            console.error("Audio context start failed in initAudio():", e);
+            soundsEnabled = false;
+        });
+    } else { // Tone.js audio context IS already running.
+        // Check if our synthesizers (like collectSynth) have been created yet.
+        if (!collectSynth) {
+            // Context is running, but synths haven't been made (e.g., game started muted, then unmuted).
+            console.log("Audio Context running, calling initAudioInternal() to create synths.");
+            initAudioInternal(); // Create synths and set soundsEnabled = true
+        } else {
+            // Context is running AND our synths already exist.
+            // This means audio should be ready to play.
+            console.log("Audio Context running and synths exist. Ensuring soundsEnabled is true.");
+            soundsEnabled = true; // Explicitly ensure game sound flag is on
+        }
+    }
+}
+        jumpSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 } }).toDestination();
                 collectSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.2 } }).toDestination();
                 hurtSynth = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.1 } }).toDestination();
                 levelUpSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.05, decay: 0.3, sustain: 0.1, release: 0.3 } }).toDestination();
@@ -823,6 +870,7 @@ function initAudio() {
         toggleGlobalSound();
     });
 }
+        
          window.addEventListener('keydown', (e) => { // Fullscreen Toggle
              if (e.key.toLowerCase() === 'f') { try { gameContainer.focus(); // Attempt to focus the container first
                  } catch(focusErr) { console.warn("Could not focus game container:", focusErr); } toggleFullScreen(); // Then attempt fullscreen
