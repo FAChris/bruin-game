@@ -331,29 +331,50 @@
         </div>
     </div>
 
-    <div class="game-container" id="gameContainer" tabindex="0">
-        <div id="name-input-overlay">
-            <h2>Enter Player Name</h2>
-            <p>Catch falling items.<br>Avoid those with red sparkles.<br>Reach the highest level!</p>
-            <p class="fullscreen-hint">(Press 'F' for Fullscreen)</p>
-            <input type="text" id="player-name-input" placeholder="Bruin" maxlength="15">
-            <div class="button-container">
-                <button id="start-game-button">Start Game</button>
-                <button id="fullscreen-button" title="Toggle Fullscreen">&#x26F6;</button>
-                <button id="sound-toggle-button" title="Toggle Sound">🔊</button>
-            </div>
-            <button id="how-to-play-button">How to Play?</button>
-            <div id="leaderboard-display">
-                <h3>Leaderboard</h3>
-                <ol id="leaderboard-list"><li>Loading...</li></ol>
-            </div>
+<div class="game-container" id="gameContainer" tabindex="0">
+    <div id="name-input-overlay">
+        <h2>Enter Player Name</h2>
+        <p>Move 🐻 (Arrows/Drag) to catch items.<br>Avoid red-sparkled items!<br>Reach the highest level!</p>
+        <p class="fullscreen-hint">(Press 'F' for Fullscreen)</p>
+        <input type="text" id="player-name-input" placeholder="Bruin" maxlength="15">
+        <div class="button-container">
+            <button id="start-game-button">Start Game</button>
+            <button id="fullscreen-button" title="Toggle Fullscreen">&#x26F6;</button>
+            <button id="sound-toggle-button" title="Toggle Sound">🔊</button>
         </div>
-        <canvas id="gameCanvas"></canvas>
-        <div class="ui-overlay">
-            </div>
-        <div id="player-name-display" class="player-name-display">Player: Bruin</div>
-        <div id="item-notification"></div>
+        <button id="how-to-play-button">How to Play?</button>
+        <div id="leaderboard-display">
+            <h3>Leaderboard</h3>
+            <ol id="leaderboard-list">
+                <li>Loading...</li>
+            </ol>
+        </div>
     </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="ui-overlay">
+        <div class="ui-left">
+            <div id="score" class="score">Score: 0</div>
+            <div id="high-score" class="high-score-display">Hi: 0 (Bruin)</div>
+        </div>
+        <div class="ui-center">
+            <div id="level" class="level">Level: 1</div>
+            <div id="high-level" class="high-level-display">Hi Lvl: 1</div>
+        </div>
+        <div class="ui-right">
+            <div id="lives" class="lives">Lives: 3</div>
+        </div>
+    </div>
+
+    <div id="player-name-display" class="player-name-display">Player: Bruin</div>
+    <div id="combo-display" class="combo-display"></div>
+    <div id="bonus-display" class="bonus-display">BONUS ROUND!</div>
+    <div id="message" class="message">Tap or Click to Start</div>
+    <div id="levelUpMessage" class="level-up-message">Level Up!</div>
+    <div id="item-notification"></div>
+</div>
+
 
     <script>
         // --- Setup ---
