@@ -21,7 +21,60 @@
             transition: background-color 1s ease;
         }
         .intro-text { font-size: 0.9em; color: #333; margin-bottom: 1rem; text-align: center; flex-shrink: 0; width: 100%; }
-        .game-container { border: 5px solid #2774AE; position: relative; overflow: hidden; width: 100%; max-width: 600px; aspect-ratio: 3 / 4; border-radius: 15px; box-shadow: 0 6px 12px rgba(0,0,0,0.15); background-color: #F2A900; cursor: grab; margin-top: 0; flex-shrink: 1; min-height: 0; outline: none;  }
+.game-container {
+    border: 5px solid #2774AE;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    max-width: 600px;
+    /* Adjusted: Use max-height to prevent exceeding viewport */
+    max-height: 100vh; /* Ensure it doesn't exceed viewport height */
+    aspect-ratio: 3 / 4;
+    border-radius: 15px;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    background-color: #F2A900;
+    cursor: grab;
+    margin-top: 0;
+    flex-shrink: 1;
+    min-height: 0;
+    outline: none;
+}
+
+/* Ensure the body doesn't cause additional scrolling */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #ADD8E6;
+    font-family: 'Press Start 2P', cursive;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Center the game-container vertically */
+    align-items: center;
+    min-height: 100vh;
+    padding: 1rem;
+    box-sizing: border-box;
+    touch-action: none;
+    transition: background-color 1s ease;
+    overflow: auto; /* Allow scrolling if absolutely necessary */
+}
+
+/* Responsive adjustments for game-container */
+@media (max-width: 600px) {
+    .game-container {
+        max-height: 90vh; /* Slightly smaller to account for padding */
+    }
+}
+
+@media (max-width: 450px) {
+    .game-container {
+        max-height: 85vh; /* Further reduce on very small screens */
+    }
+}
         canvas { display: block; width: 100%; height: 100%; visibility: hidden; background-color: transparent; }
 /* Name Input Overlay */
 #name-input-overlay {
@@ -34,14 +87,14 @@
     z-index: 30;
     display: flex;
     flex-direction: column;
-    /* --- MODIFIED: Align top, adjust padding, add overflow & box-sizing --- */
-    justify-content: flex-start; /* Align content to the top */
-    padding-top: 30px; /* More space at the top */
-    padding-bottom: 20px;
+    /* --- MODIFIED: Center content, reduce padding, keep overflow & box-sizing --- */
+    justify-content: center; /* Center content vertically to fit all elements */
+    padding-top: 20px; /* Reduced space at the top */
+    padding-bottom: 15px; /* Reduced space at the bottom */
     padding-left: 20px;
     padding-right: 20px;
     box-sizing: border-box; /* Include padding in height calculation */
-    overflow-y: auto;       /* Allow the whole overlay to scroll if needed */
+    overflow-y: auto;       /* Allow scrolling if needed, but aim to avoid it */
     /* --- End Modified --- */
     align-items: center; /* Keep items centered horizontally */
     text-align: center;
@@ -49,13 +102,13 @@
 }
 #name-input-overlay h2 {
     font-size: 1.3em;
-    margin-bottom: 15px;
+    margin-bottom: 10px; /* Reduced margin */
     flex-shrink: 0; /* Added to prevent shrinking */
 }
 #name-input-overlay p {
     font-size: 0.8em;
     line-height: 1.4;
-    margin-bottom: 10px;
+    margin-bottom: 5px; /* Reduced margin */
     max-width: 90%;
     flex-shrink: 0; /* Added to prevent shrinking */
 }
@@ -63,25 +116,25 @@
     font-size: 0.65em;
     color: #555;
     margin-top: 5px;
-    margin-bottom: 15px;
+    margin-bottom: 10px; /* Reduced margin */
     flex-shrink: 0; /* Added to prevent shrinking */
 }
 #player-name-input {
     font-family: 'Press Start 2P', cursive;
     font-size: 1em;
-    padding: 10px;
-    margin-bottom: 20px;
+    padding: 8px; /* Reduced padding */
+    margin-bottom: 10px; /* Reduced margin */
     border: 2px solid #2774AE;
     border-radius: 5px;
     text-align: center;
     width: 80%;
     max-width: 250px;
-    flex-shrink: 0; /* <--- ADD THIS LINE */
+    flex-shrink: 0; /* Already added as per your comment */
 }
 #start-game-button {
     font-family: 'Press Start 2P', cursive;
-    font-size: 1em;
-    padding: 12px 25px;
+    font-size: 0.9em; /* Reduced font-size */
+    padding: 10px 20px; /* Reduced padding */
     background-color: #2774AE;
     color: white;
     border: none;
@@ -94,10 +147,10 @@
     background-color: #1E5A8C;
 }
 #leaderboard-display {
-    margin-top: 15px;
+    margin-top: 10px; /* Reduced margin */
     width: 90%;
     max-width: 350px;
-    max-height: 150px; /* Keep leaderboard's own max-height */
+    max-height: 120px; /* Reduced max-height to fit better */
     overflow-y: auto; /* Keep leaderboard's own scroll */
     background: rgba(240, 240, 240, 0.8);
     border: 1px solid #ccc;
@@ -159,8 +212,8 @@
     display: flex; /* Align buttons side-by-side */
     align-items: center; /* Vertically align items if heights differ */
     justify-content: center; /* Center the buttons */
-    gap: 15px; /* Space between buttons */
-    margin-bottom: 20px; /* Space below buttons */
+    gap: 10px; /* Reduced space between buttons */
+    margin-bottom: 10px; /* Reduced space below buttons */
     flex-shrink: 0; /* Prevent shrinking */
 }
 
@@ -182,7 +235,7 @@
     background-color: #5a6268;
 }
 
-        #sound-toggle-button {
+#sound-toggle-button {
     font-family: 'Press Start 2P', cursive; /* Match style */
     font-size: 1.2em;  /* Adjust size as needed */
     padding: 8px 10px; /* Adjust padding */
@@ -200,18 +253,19 @@
 #sound-toggle-button:hover {
     background-color: #5a6268;
 }
-        /* Achievements Button */
+
+/* Achievements Button */
 #achievements-button {
     font-family: 'Press Start 2P', cursive;
-    font-size: 0.9em;
-    padding: 10px 20px;
+    font-size: 0.9em; /* Reduced font-size */
+    padding: 8px 15px; /* Reduced padding */
     background-color: #FF8C00; /* Orange, like how-to-play-button */
     color: white;
     border: none;
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.2s;
-    margin: 10px auto;
+    margin: 5px auto; /* Reduced margin */
     display: block;
 }
 
@@ -320,6 +374,36 @@
 
 /* Responsive adjustments */
 @media (max-width: 600px) {
+    #name-input-overlay {
+        padding-top: 15px; /* Further reduce padding */
+        padding-bottom: 10px;
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    #name-input-overlay h2 {
+        font-size: 1.1em;
+    }
+    #name-input-overlay p {
+        font-size: 0.7em;
+        margin-bottom: 3px;
+    }
+    #name-input-overlay .fullscreen-hint {
+        font-size: 0.6em;
+        margin-bottom: 8px;
+    }
+    #player-name-input {
+        font-size: 0.9em;
+        padding: 6px;
+        margin-bottom: 8px;
+    }
+    #start-game-button {
+        font-size: 0.8em;
+        padding: 8px 15px;
+    }
+    .button-container {
+        gap: 8px;
+        margin-bottom: 8px;
+    }
     #achievements-button, #close-achievements-button {
         font-size: 0.8em;
         padding: 8px 15px;
@@ -331,8 +415,62 @@
     #achievements-modal .modal-content {
         font-size: 0.7em;
     }
+    #leaderboard-display {
+        margin-top: 8px;
+        max-height: 100px; /* Reduced height */
+        font-size: 0.65em;
+        padding: 4px 8px;
+    }
 }
-        /* Share Score Button */
+
+@media (max-width: 450px) {
+    #name-input-overlay {
+        padding-top: 10px;
+        padding-bottom: 8px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    #name-input-overlay h2 {
+        font-size: 1em;
+    }
+    #name-input-overlay p {
+        font-size: 0.65em;
+        margin-bottom: 2px;
+    }
+    #name-input-overlay .fullscreen-hint {
+        font-size: 0.55em;
+        margin-bottom: 5px;
+    }
+    #player-name-input {
+        font-size: 0.8em;
+        padding: 5px;
+        margin-bottom: 5px;
+    }
+    #start-game-button {
+        font-size: 0.7em;
+        padding: 6px 12px;
+    }
+    .button-container {
+        gap: 5px;
+        margin-bottom: 5px;
+    }
+    #achievements-button, #close-achievements-button {
+        font-size: 0.7em;
+        padding: 6px 12px;
+    }
+    #achievement-notification {
+        font-size: 0.8em;
+        padding: 6px 12px;
+    }
+    #leaderboard-display {
+        max-height: 80px; /* Further reduced */
+        font-size: 0.6em;
+        padding: 3px 6px;
+        display: block; /* Ensure visibility on small screens */
+    }
+}
+
+/* Share Score Button */
 #share-score-button {
     font-family: 'Press Start 2P', cursive;
     font-size: 0.9em;
@@ -389,6 +527,7 @@
         padding: 8px 15px;
     }
 }
+
 @media (max-width: 450px) {
     #share-score-button {
         font-size: 0.7em;
