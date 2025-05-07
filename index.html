@@ -834,48 +834,61 @@ function closeAchievementsModal() {
     }
 }
         
-        // --- Game Variables ---
-        let player; let playerName = "Bruin";
-        let items = []; let particles = [];
-        let score = 0; let leaderboard = [];
-        let lives = 3; let level = 1;
-        let baseGameSpeed = 2; let gameSpeed = baseGameSpeed;
-        let baseItemSpawnInterval = 95; let itemSpawnInterval = baseItemSpawnInterval;
-        let itemTimer = 0;
-        let isGameOver = true;
-        let originalModalParent; // Will be set once the DOM is loaded
-        let modalWasMovedForFullscreen = false;
-        let animationFrameId = null;
-        let touchStartX = null; let playerStartX = null; let isDragging = false;
-        let comboCount = 0;
-        let comboMultiplier = 1;
-        let totalItemsCaught = 0;
+       // --- Game Variables ---
+let player;
+let playerName = localStorage.getItem('bruinCatchLastPlayerName') || "Bruin"; // Load last used name
+let items = [];
+let particles = [];
+let score = 0;
+let leaderboard = [];
+let lives = 3;
+let level = 1;
+let baseGameSpeed = 2;
+let gameSpeed = baseGameSpeed;
+let baseItemSpawnInterval = 95;
+let itemSpawnInterval = baseItemSpawnInterval;
+let itemTimer = 0;
+let isGameOver = true;
+let originalModalParent; // Will be set once the DOM is loaded
+let modalWasMovedForFullscreen = false;
+let animationFrameId = null;
+let touchStartX = null;
+let playerStartX = null;
+let isDragging = false;
+let comboCount = 0;
+let comboMultiplier = 1;
+let totalItemsCaught = 0;
 let goldenItemsCaught = 0;
-let playerAchievements = [];
-        let isBonusRoundActive = false; let bonusRoundTimer = 0;
-        let isPlayerBig = false; let playerBigTimer = 0;
-        let isPlayerSmall = false; let playerSmallTimer = 0;
-        let isSlowMo = false;
+let playerAchievements = []; // Will be loaded from localStorage
+let isBonusRoundActive = false;
+let bonusRoundTimer = 0;
+let isPlayerBig = false;
+let playerBigTimer = 0;
+let isPlayerSmall = false;
+let playerSmallTimer = 0;
+let isSlowMo = false;
 let slowmoTimer = 0;
 let isMagnet = false;
 let magnetTimer = 0;
-        let highestCombo = 1; // Track the highest combo achieved in the session
-        let passiveScoreTimer = 0;
-        let notificationTimeoutId = null;
+let highestCombo = 1; // Track the highest combo achieved in the session
+let passiveScoreTimer = 0;
+let notificationTimeoutId = null;
 
 // --- Constants ---
 const LEADERBOARD_KEY = 'bruinCatchLeaderboard_v2'; // Local storage fallback key
-        const ACHIEVEMENTS_KEY = 'bruinCatchAchievements';
+const ACHIEVEMENTS_KEY = 'bruinCatchAchievements';
 const INITIAL_GAME_SPEED = 2; // Initial game speed
 const INITIAL_ITEM_SPAWN_INTERVAL = 95; // Initial spawn interval in frames
+
+// Define achievements array
 const achievements = [
     {
         id: 'catch_100_items',
         name: 'Item Collector',
         description: 'Catch 100 items in total',
-        target: 100, // Numerical target for progress
+        target: 100,
         condition: () => totalItemsCaught >= 100,
-        progress: () => Math.min(totalItemsCaught / 100, 1), // Progress as a fraction (0 to 1)
+        progress: () => Math.min(totalItemsCaught / 100, 1),
         unlocked: false
     },
     {
@@ -887,15 +900,15 @@ const achievements = [
         progress: () => Math.min(level / 10, 1),
         unlocked: false
     },
-  {
-    id: 'combo_10x',
-    name: 'Combo King',
-    description: 'Achieve a 10x Combo',
-    target: 10,
-    condition: () => highestCombo >= 10,
-    progress: () => Math.min(highestCombo / 10, 1),
-    unlocked: false
-},
+    {
+        id: 'combo_10x',
+        name: 'Combo King',
+        description: 'Achieve a 10x Combo',
+        target: 10,
+        condition: () => highestCombo >= 10,
+        progress: () => Math.min(highestCombo / 10, 1),
+        unlocked: false
+    },
     {
         id: 'first_golden',
         name: 'Golden Touch',
@@ -1198,6 +1211,10 @@ function startGame() {
         playerNameInput.value = playerName;
     }
     if (!playerName) playerName = "Bruin";
+    // Save the playerName to localStorage
+    localStorage.setItem('bruinCatchLastPlayerName', playerName);
+    // Reload achievements for the new playerName
+    loadAchievements();
     nameInputOverlay.style.display = 'none';
     gameContainer.focus();
     isGameOver = false;
@@ -1231,7 +1248,6 @@ function startGame() {
     levelElement.textContent = `Level: ${level}`;
     comboDisplayElement.style.display = 'none';
     messageElement.style.display = 'none';
-    loadAchievements();
     animationFrameId = requestAnimationFrame(gameLoop);
 }
 // --- Modify initAudio() slightly ---
@@ -1722,8 +1738,7 @@ function updateMagnet() {
              // --- MODIFIED: Use constant for duration ---
              notificationTimeoutId = setTimeout(() => { itemNotificationElement.style.display = 'none'; }, ITEM_NOTIFICATION_DURATION); // Restart fadeout animation
              itemNotificationElement.style.animation = 'none'; itemNotificationElement.offsetHeight; itemNotificationElement.style.animation = ''; }
-        function loadAchievements() {
-    if (!playerName) return;
+function loadAchievements() {
     try {
         const stored = localStorage.getItem(`${ACHIEVEMENTS_KEY}_${playerName}`);
         playerAchievements = stored ? JSON.parse(stored) : [];
@@ -1733,6 +1748,10 @@ function updateMagnet() {
         console.log('Achievements loaded for', playerName, playerAchievements);
     } catch (e) {
         console.error('Error loading achievements:', e);
+        playerAchievements = [];
+        achievements.forEach(achievement => {
+            achievement.unlocked = false;
+        });
     }
 }
 
@@ -1885,10 +1904,25 @@ function gameLoop() {
     }
 }
 
-        function showNameInputScreen() { isGameOver = true; cancelAnimationFrame(animationFrameId); animationFrameId = null; nameInputOverlay.style.display = 'flex'; canvas.style.visibility = 'hidden'; uiOverlay.style.visibility = 'hidden'; messageElement.style.display = 'none'; levelUpMessageElement.style.display = 'none'; bonusDisplayElement.style.display = 'none'; // Hide bonus display too
-             comboDisplayElement.style.display = 'none'; // Hide combo display
-             loadRemoteLeaderboard(); // Load latest scores when showing screen
-             playerNameInput.value = playerName; try { playerNameInput.focus(); } catch(e) {console.warn("Could not focus name input:", e)} }
+ function showNameInputScreen() { 
+    isGameOver = true; 
+    cancelAnimationFrame(animationFrameId); 
+    animationFrameId = null; 
+    nameInputOverlay.style.display = 'flex'; 
+    canvas.style.visibility = 'hidden'; 
+    uiOverlay.style.visibility = 'hidden'; 
+    messageElement.style.display = 'none'; 
+    levelUpMessageElement.style.display = 'none'; 
+    bonusDisplayElement.style.display = 'none'; // Hide bonus display too
+    comboDisplayElement.style.display = 'none'; // Hide combo display
+    loadRemoteLeaderboard(); // Load latest scores when showing screen
+    playerNameInput.value = playerName; // Prefill with last used name
+    try { 
+        playerNameInput.focus(); 
+    } catch(e) {
+        console.warn("Could not focus name input:", e);
+    } 
+}
 
         function initializeGame() { if (!isGameOver) { console.log("InitializeGame called but game not over. Ignoring."); return; } console.log("Initializing Game..."); initAudio(); // Ensure audio is ready
              isGameOver = false; score = 0; lives = 3; level = 1; baseGameSpeed = 2; // Reset speed/interval to base
@@ -2106,6 +2140,8 @@ gameContainer.addEventListener('mouseleave', stopMouseDragging);
 // Start Game Button / Input Listeners
 const handleStartGame = () => {
     playerName = playerNameInput.value.trim().substring(0, 15) || "Bruin";
+    localStorage.setItem('bruinCatchLastPlayerName', playerName); // Save the playerName
+    loadAchievements(); // Reload achievements for the new playerName
     nameInputOverlay.style.display = 'none';
     initializeGame();
 };
@@ -2128,9 +2164,9 @@ playerNameInput.addEventListener('touchstart', (e) => {
         // Fullscreen Toggle Function
          function toggleFullScreen() { try { if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) { console.log('Attempting to enter fullscreen on:', gameContainer); if (gameContainer.requestFullscreen) { gameContainer.requestFullscreen().catch(err => console.error('Fullscreen request failed:', err)); } else if (gameContainer.mozRequestFullScreen) { /* Firefox */ gameContainer.mozRequestFullScreen().catch(err => console.error('Moz fullscreen failed:', err)); } else if (gameContainer.webkitRequestFullscreen) { /* Chrome, Safari & Opera */ gameContainer.webkitRequestFullscreen().catch(err => console.error('Webkit fullscreen failed:', err)); } else if (gameContainer.msRequestFullscreen) { /* IE/Edge */ gameContainer.msRequestFullscreen().catch(err => console.error('MS fullscreen failed:', err)); } else { console.warn('Fullscreen API not supported by this browser.'); } } else { console.log('Attempting to exit fullscreen'); if (document.exitFullscreen) { document.exitFullscreen().catch(err => console.error('Exit fullscreen failed:', err)); } else if (document.mozCancelFullScreen) { /* Firefox */ document.mozCancelFullScreen().catch(err => console.error('Moz exit fullscreen failed:', err)); } else if (document.webkitExitFullscreen) { /* Chrome, Safari and Opera */ document.webkitExitFullscreen().catch(err => console.error('Webkit exit fullscreen failed:', err)); } else if (document.msExitFullscreen) { /* IE/Edge */ document.msExitFullscreen().catch(err => console.error('MS exit fullscreen failed:', err)); } else { console.warn('Exit Fullscreen API not supported by this browser.'); } } } catch (err) { console.error('Error during fullscreen toggle:', err); } }
 
-        // --- Initial Setup ---
-        window.addEventListener('resize', resizeCanvas);
-      window.addEventListener('load', () => {
+  // --- Initial Setup ---
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('load', () => {
     loadRemoteLeaderboard();
     resizeCanvas();
 
@@ -2154,10 +2190,14 @@ playerNameInput.addEventListener('touchstart', (e) => {
         soundGloballyEnabled = savedSoundPreference === 'true';
     }
     updateSoundButtonIcon();
+
+    // Load achievements immediately on page load using the last known playerName
+    loadAchievements();
+
     showNameInputScreen();
 });
 
-        console.log("Script End Reached - Basic Test");
+console.log("Script End Reached - Basic Test");
 
     </script>
 </body>
