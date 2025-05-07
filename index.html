@@ -200,6 +200,138 @@
 #sound-toggle-button:hover {
     background-color: #5a6268;
 }
+        /* Achievements Button */
+#achievements-button {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.9em;
+    padding: 10px 20px;
+    background-color: #FF8C00; /* Orange, like how-to-play-button */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin: 10px auto;
+    display: block;
+}
+
+#achievements-button:hover {
+    background-color: #E07B00;
+}
+
+/* Achievements Modal */
+#achievements-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 100;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+#achievements-modal .modal-content {
+    background-color: #fff;
+    color: #333;
+    padding: 25px;
+    border-radius: 10px;
+    max-width: 500px;
+    width: 90%;
+    text-align: left;
+    font-size: 0.8em;
+    line-height: 1.6;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+#achievements-modal h2 {
+    font-size: 1.3em;
+    color: #2774AE;
+    margin-top: 0;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+#achievements-list {
+    margin-bottom: 20px;
+}
+
+.achievement-item {
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.achievement-item.unlocked {
+    background-color: #E6F3FF;
+}
+
+.achievement-item.locked {
+    background-color: #F0F0F0;
+    opacity: 0.7;
+}
+
+.achievement-item span {
+    color: #777;
+    font-style: italic;
+}
+
+#close-achievements-button {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.9em;
+    padding: 10px 20px;
+    background-color: #2774AE;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin: 10px auto;
+    display: block;
+}
+
+#close-achievements-button:hover {
+    background-color: #1E5A8C;
+}
+
+/* Achievement Notification */
+#achievement-notification {
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Press Start 2P', cursive;
+    font-size: 1em;
+    color: #FFD700;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 10px 20px;
+    border-radius: 8px;
+    z-index: 25;
+    display: none;
+    text-align: center;
+    animation: fadeOutNotification 2s forwards;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    #achievements-button, #close-achievements-button {
+        font-size: 0.8em;
+        padding: 8px 15px;
+    }
+    #achievement-notification {
+        font-size: 0.9em;
+        padding: 8px 15px;
+    }
+    #achievements-modal .modal-content {
+        font-size: 0.7em;
+    }
+}
         /* Share Score Button */
 #share-score-button {
     font-family: 'Press Start 2P', cursive;
@@ -396,6 +528,13 @@
             <button id="close-how-to-play-modal">Close</button>
         </div>
     </div>
+    <div id="achievements-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <h2>Achievements</h2>
+        <div id="achievements-list"></div>
+        <button id="close-achievements-button">Close</button>
+    </div>
+</div>
 
 <div class="game-container" id="gameContainer" tabindex="0">
     <div id="name-input-overlay">
@@ -407,6 +546,8 @@
             <button id="start-game-button">Start Game</button>
             <button id="fullscreen-button" title="Toggle Fullscreen">&#x26F6;</button>
             <button id="sound-toggle-button" title="Toggle Sound">🔊</button>
+        </div>
+                <button id="achievements-button">Achievements</button>
         </div>
         <button id="how-to-play-button">How to Play?</button>
         <div id="leaderboard-display">
@@ -440,6 +581,7 @@
     <div id="levelUpMessage" class="level-up-message">Level Up!</div>
     <div id="item-notification"></div>
     <div id="copied-notification">Copied!</div>
+    <div id="achievement-notification">Achievement Unlocked!</div>
 </div>
 
 
@@ -469,6 +611,40 @@
         const howToPlayButton = document.getElementById('how-to-play-button');
 const howToPlayModal = document.getElementById('how-to-play-modal');
 const closeHowToPlayModalButton = document.getElementById('close-how-to-play-modal');
+        function showAchievementsModal() {
+    const modal = document.getElementById('achievements-modal');
+    const list = document.getElementById('achievements-list');
+    if (modal && list) {
+        list.innerHTML = achievements.map(achievement => `
+            <div class="achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}">
+                <strong>${achievement.name}</strong>: ${achievement.description}
+                ${achievement.unlocked ? '' : '<span>(Locked)</span>'}
+            </div>
+        `).join('');
+        modal.style.display = 'flex';
+        if (document.fullscreenElement === gameContainer) {
+            if (modal.parentNode !== gameContainer) {
+                gameContainer.appendChild(modal);
+                modalWasMovedForFullscreen = true;
+            }
+        } else {
+            if (modal.parentNode !== originalModalParent && originalModalParent) {
+                originalModalParent.appendChild(modal);
+            }
+        }
+    }
+}
+
+function closeAchievementsModal() {
+    const modal = document.getElementById('achievements-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        if (modalWasMovedForFullscreen && modal.parentNode === gameContainer && originalModalParent) {
+            originalModalParent.appendChild(modal);
+            modalWasMovedForFullscreen = false;
+        }
+    }
+}
         
         // --- Game Variables ---
         let player; let playerName = "Bruin";
@@ -485,6 +661,9 @@ const closeHowToPlayModalButton = document.getElementById('close-how-to-play-mod
         let touchStartX = null; let playerStartX = null; let isDragging = false;
         let comboCount = 0;
         let comboMultiplier = 1;
+        let totalItemsCaught = 0;
+let goldenItemsCaught = 0;
+let playerAchievements = [];
         let isBonusRoundActive = false; let bonusRoundTimer = 0;
         let isPlayerBig = false; let playerBigTimer = 0;
         let isPlayerSmall = false; let playerSmallTimer = 0;
@@ -497,6 +676,37 @@ let magnetTimer = 0;
 
 // --- Constants ---
 const LEADERBOARD_KEY = 'bruinCatchLeaderboard_v2'; // Local storage fallback key
+        const ACHIEVEMENTS_KEY = 'bruinCatchAchievements';
+const achievements = [
+    {
+        id: 'catch_100_items',
+        name: 'Item Collector',
+        description: 'Catch 100 items in total',
+        condition: () => totalItemsCaught >= 100,
+        unlocked: false
+    },
+    {
+        id: 'reach_level_10',
+        name: 'Level Master',
+        description: 'Reach Level 10',
+        condition: () => level >= 10,
+        unlocked: false
+    },
+    {
+        id: 'combo_10x',
+        name: 'Combo King',
+        description: 'Achieve a 10x Combo',
+        condition: () => comboMultiplier >= 10,
+        unlocked: false
+    },
+    {
+        id: 'first_golden',
+        name: 'Golden Touch',
+        description: 'Catch your first Golden Item',
+        condition: () => goldenItemsCaught >= 1,
+        unlocked: false
+    }
+];
 // Correct paths for deployed Netlify functions
 const NETLIFY_SAVE_SCORE_URL = '/.netlify/functions/save-score';
 const NETLIFY_GET_SCORES_URL = '/.netlify/functions/get-scores';
@@ -782,6 +992,48 @@ function closeHowToPlayModal() {
     modalWasMovedForFullscreen = false; // Reset flag on close
 }
 
+        function startGame() {
+    playerName = playerNameInput.value.trim();
+    if (playerName.length > 15) {
+        playerName = playerName.slice(0, 15);
+        playerNameInput.value = playerName;
+    }
+    if (!playerName) playerName = "Bruin";
+    nameInputOverlay.style.display = 'none';
+    gameContainer.focus();
+    isGameOver = false;
+    score = 0;
+    lives = 3;
+    level = 1;
+    gameSpeed = INITIAL_GAME_SPEED;
+    itemSpawnInterval = INITIAL_ITEM_SPAWN_INTERVAL;
+    items = [];
+    particles = [];
+    comboCount = 0;
+    comboMultiplier = 1;
+    passiveScoreTimer = 0;
+    totalItemsCaught = 0;
+    goldenItemsCaught = 0;
+    isPlayerBig = false;
+    isPlayerSmall = false;
+    playerBigTimer = 0;
+    playerSmallTimer = 0;
+    isBonusRoundActive = false;
+    bonusRoundTimer = 0;
+    bonusRoundSpawnTimer = 0;
+    isSlowMo = false;
+    slowmoTimer = 0;
+    isMagnet = false;
+    magnetTimer = 0;
+    player = new Player(canvas.width / 2 - PLAYER_WIDTH / 2, canvas.height - PLAYER_HEIGHT - 10);
+    scoreElement.textContent = `Score: ${score}`;
+    livesElement.textContent = `Lives: ${lives}`;
+    levelElement.textContent = `Level: ${level}`;
+    comboDisplayElement.style.display = 'none';
+    messageElement.style.display = 'none';
+    loadAchievements();
+    animationFrameId = requestAnimationFrame(gameLoop);
+}
 // --- Modify initAudio() slightly ---
                     
         // --- Leaderboard Handling ---
@@ -1115,66 +1367,75 @@ function toggleGlobalSound() {
             let scoreToAdd = 0;
             let soundType = 'good';
             let notificationText = null;
-            switch(item.type) {
-                case 'superRare':
-                    scoreToAdd = superRareItemValue;
-                    createParticle(particleX, particleY, SUPER_RARE_PARTICLE_COUNT, superRareParticleColor, SUPER_RARE_PARTICLE_SPEED, 'burst');
-                    soundType = 'superRare';
-                    notificationText = "DIAMOND!";
-                    break;
-                case 'golden':
-                    scoreToAdd = goldenItemValue;
-                    createParticle(particleX, particleY, GOLDEN_PARTICLE_COUNT, goldenParticleColor, GOLDEN_PARTICLE_SPEED, 'burst');
-                    soundType = 'golden';
-                    notificationText = "Golden Star!";
-                    break;
-                case 'good':
-                    scoreToAdd = itemValue;
-                    createParticle(particleX, particleY, GOOD_PARTICLE_COUNT, goodParticleColor, GOOD_PARTICLE_SPEED, 'upward');
-                    soundType = 'good';
-                    break;
-                case 'life':
-                    lives++;
-                    createParticle(particleX, particleY, LIFE_PARTICLE_COUNT, lifeParticleColor, LIFE_PARTICLE_SPEED, 'upward');
-                    soundType = 'life';
-                    notificationText = "+1 Life!";
-                    break;
-                case 'grow':
-                    if (!isPlayerSmall) player.setSize('big');
-                    createParticle(particleX, particleY, GROW_PARTICLE_COUNT, growParticleColor, GROW_PARTICLE_SPEED, 'burst');
-                    soundType = 'grow';
-                    notificationText = "Grew Big!";
-                    break;
-                case 'shrink':
-                    if (!isPlayerBig) player.setSize('small');
-                    createParticle(particleX, particleY, SHRINK_PARTICLE_COUNT, shrinkParticleColor, SHRINK_PARTICLE_SPEED, 'burst');
-                    soundType = 'shrink';
-                    notificationText = "Shrunk Small!";
-                    break;
-                case 'slowmo':
-                    isSlowMo = true;
-                    slowmoTimer = slowmoDuration;
-                    items.forEach(item => item.speed *= slowmoSpeedMultiplier);
-                    createParticle(particleX, particleY, SLOWMO_PARTICLE_COUNT, slowmoParticleColor, SLOWMO_PARTICLE_SPEED, 'burst');
-                    soundType = 'slowmo';
-                    notificationText = "Slow-Mo!";
-                    break;
-                case 'magnet':
-                    isMagnet = true;
-                    magnetTimer = magnetDuration;
-                    createParticle(particleX, particleY, MAGNET_PARTICLE_COUNT, magnetParticleColor, MAGNET_PARTICLE_SPEED, 'burst');
-                    soundType = 'magnet';
-                    notificationText = "Magnet Activated!";
-                    break;
-                case 'bad':
-                    lives--;
-                    score += penaltyValue;
-                    createParticle(particleX, particleY, BAD_HIT_PARTICLE_COUNT, badParticleColor, BAD_HIT_PARTICLE_SPEED, 'burst');
-                    soundType = 'bad';
-                    comboCount = 0;
-                    comboMultiplier = 1;
-                    break;
-            }
+switch(item.type) {
+    case 'superRare':
+        scoreToAdd = superRareItemValue;
+        createParticle(particleX, particleY, SUPER_RARE_PARTICLE_COUNT, superRareParticleColor, SUPER_RARE_PARTICLE_SPEED, 'burst');
+        soundType = 'superRare';
+        notificationText = "DIAMOND!";
+        totalItemsCaught++;
+        break;
+    case 'golden':
+        scoreToAdd = goldenItemValue;
+        createParticle(particleX, particleY, GOLDEN_PARTICLE_COUNT, goldenParticleColor, GOLDEN_PARTICLE_SPEED, 'burst');
+        soundType = 'golden';
+        notificationText = "Golden Star!";
+        totalItemsCaught++;
+        goldenItemsCaught++;
+        break;
+    case 'good':
+        scoreToAdd = itemValue;
+        createParticle(particleX, particleY, GOOD_PARTICLE_COUNT, goodParticleColor, GOOD_PARTICLE_SPEED, 'upward');
+        soundType = 'good';
+        totalItemsCaught++;
+        break;
+    case 'life':
+        lives++;
+        createParticle(particleX, particleY, LIFE_PARTICLE_COUNT, lifeParticleColor, LIFE_PARTICLE_SPEED, 'upward');
+        soundType = 'life';
+        notificationText = "+1 Life!";
+        totalItemsCaught++;
+        break;
+    case 'grow':
+        if (!isPlayerSmall) player.setSize('big');
+        createParticle(particleX, particleY, GROW_PARTICLE_COUNT, growParticleColor, GROW_PARTICLE_SPEED, 'burst');
+        soundType = 'grow';
+        notificationText = "Grew Big!";
+        totalItemsCaught++;
+        break;
+    case 'shrink':
+        if (!isPlayerBig) player.setSize('small');
+        createParticle(particleX, particleY, SHRINK_PARTICLE_COUNT, shrinkParticleColor, SHRINK_PARTICLE_SPEED, 'burst');
+        soundType = 'shrink';
+        notificationText = "Shrunk Small!";
+        totalItemsCaught++;
+        break;
+    case 'slowmo':
+        isSlowMo = true;
+        slowmoTimer = slowmoDuration;
+        items.forEach(item => item.speed *= slowmoSpeedMultiplier);
+        createParticle(particleX, particleY, SLOWMO_PARTICLE_COUNT, slowmoParticleColor, SLOWMO_PARTICLE_SPEED, 'burst');
+        soundType = 'slowmo';
+        notificationText = "Slow-Mo!";
+        totalItemsCaught++;
+        break;
+    case 'magnet':
+        isMagnet = true;
+        magnetTimer = magnetDuration;
+        createParticle(particleX, particleY, MAGNET_PARTICLE_COUNT, magnetParticleColor, MAGNET_PARTICLE_SPEED, 'burst');
+        soundType = 'magnet';
+        notificationText = "Magnet Activated!";
+        totalItemsCaught++;
+        break;
+    case 'bad':
+        lives--;
+        score += penaltyValue;
+        createParticle(particleX, particleY, BAD_HIT_PARTICLE_COUNT, badParticleColor, BAD_HIT_PARTICLE_SPEED, 'burst');
+        soundType = 'bad';
+        comboCount = 0;
+        comboMultiplier = 1;
+        break;
+}
             if (scoreToAdd > 0) {
                 scoreToAdd *= comboMultiplier;
                 score += scoreToAdd;
@@ -1252,6 +1513,56 @@ function updateMagnet() {
              // --- MODIFIED: Use constant for duration ---
              notificationTimeoutId = setTimeout(() => { itemNotificationElement.style.display = 'none'; }, ITEM_NOTIFICATION_DURATION); // Restart fadeout animation
              itemNotificationElement.style.animation = 'none'; itemNotificationElement.offsetHeight; itemNotificationElement.style.animation = ''; }
+        function loadAchievements() {
+    if (!playerName) return;
+    try {
+        const stored = localStorage.getItem(`${ACHIEVEMENTS_KEY}_${playerName}`);
+        playerAchievements = stored ? JSON.parse(stored) : [];
+        achievements.forEach(achievement => {
+            achievement.unlocked = playerAchievements.includes(achievement.id);
+        });
+        console.log('Achievements loaded for', playerName, playerAchievements);
+    } catch (e) {
+        console.error('Error loading achievements:', e);
+    }
+}
+
+function saveAchievements() {
+    if (!playerName) return;
+    try {
+        const unlockedIds = achievements.filter(a => a.unlocked).map(a => a.id);
+        localStorage.setItem(`${ACHIEVEMENTS_KEY}_${playerName}`, JSON.stringify(unlockedIds));
+        playerAchievements = unlockedIds;
+        console.log('Achievements saved for', playerName, unlockedIds);
+    } catch (e) {
+        console.error('Error saving achievements:', e);
+    }
+}
+
+function checkAchievements() {
+    achievements.forEach(achievement => {
+        if (!achievement.unlocked && achievement.condition()) {
+            achievement.unlocked = true;
+            showAchievementNotification(achievement.name);
+            saveAchievements();
+            console.log('Achievement unlocked:', achievement.name);
+        }
+    });
+}
+
+function showAchievementNotification(achievementName) {
+    const notification = document.getElementById('achievement-notification');
+    if (notification) {
+        notification.textContent = `Achievement: ${achievementName}!`;
+        notification.style.display = 'block';
+        notification.style.animation = 'none';
+        notification.offsetHeight;
+        notification.style.animation = '';
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 2000); // 2 seconds
+    }
+}
 function shareScore() {
     const gameUrl = 'https://aquamarine-dieffenbachia-ed23a6.netlify.app/'; // Replace with your actual game URL
     const shareMessage = `I scored ${score} on Bruin Catch! Can you beat it? ${gameUrl}`;
@@ -1317,6 +1628,7 @@ function gameLoop() {
             checkLevelUp();
         }
     }
+    checkAchievements();
     drawGame();
     animationFrameId = requestAnimationFrame(gameLoop);
 }
@@ -1410,40 +1722,31 @@ if (howToPlayButton && howToPlayModal) {
     if (!howToPlayModal) console.error("'howToPlayModal' not found during listener attachment.");
 }
 
-document.addEventListener('fullscreenchange', () => {
-    if (!howToPlayModal || !gameContainer) {
-        console.warn("MODAL_DEBUG: fullscreenchange - Modal or gameContainer is null.");
-        return;
-    }
-    // Ensure originalModalParent is known
-    if (!originalModalParent && howToPlayModal.parentNode && howToPlayModal.parentNode !== gameContainer) {
-        originalModalParent = howToPlayModal.parentNode;
-    } else if (!originalModalParent) {
-        originalModalParent = document.body; // Fallback
-    }
+const achievementsButton = document.getElementById('achievements-button');
+const achievementsModal = document.getElementById('achievements-modal');
+const closeAchievementsButton = document.getElementById('close-achievements-button');
 
-    const isCurrentlyFullscreen = document.fullscreenElement === gameContainer;
-    const modalIsOpen = howToPlayModal.style.display === 'flex';
-
-    console.log(`MODAL_DEBUG: Fullscreen event. Is now fullscreen: ${isCurrentlyFullscreen}, Modal open: ${modalIsOpen}, Modal current parent: ${howToPlayModal.parentNode ? (howToPlayModal.parentNode.id || howToPlayModal.parentNode.tagName) : 'none'}`);
-
-    if (!isCurrentlyFullscreen) { // Exited fullscreen
-        if (modalWasMovedForFullscreen && howToPlayModal.parentNode === gameContainer && originalModalParent) {
-            console.log("MODAL_DEBUG: Exited fullscreen. Modal was in gameContainer. Moving back to original parent:", originalModalParent.id || originalModalParent.tagName);
-            originalModalParent.appendChild(howToPlayModal);
+if (achievementsButton && achievementsModal && closeAchievementsButton) {
+    achievementsButton.addEventListener('click', () => {
+        showAchievementsModal();
+    });
+    achievementsButton.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        showAchievementsModal();
+    });
+    closeAchievementsButton.addEventListener('click', closeAchievementsModal);
+    closeAchievementsButton.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        closeAchievementsModal();
+    });
+    achievementsModal.addEventListener('click', (e) => {
+        if (e.target === achievementsModal) {
+            closeAchievementsModal();
         }
-        modalWasMovedForFullscreen = false;
-    } else { // Entered fullscreen
-        if (modalIsOpen && howToPlayModal.parentNode !== gameContainer && originalModalParent) {
-            console.log("MODAL_DEBUG: Entered fullscreen & modal is open but not in gameContainer. Moving modal INTO gameContainer.");
-            gameContainer.appendChild(howToPlayModal);
-            modalWasMovedForFullscreen = true;
-        } else if (modalIsOpen && howToPlayModal.parentNode === gameContainer) {
-            console.log("MODAL_DEBUG: Entered fullscreen & modal is open and already in gameContainer.");
-            modalWasMovedForFullscreen = true; // Ensure flag is set
-        }
-    }
-});
+    });
+} else {
+    console.warn("Achievements elements not found: button:", !!achievementsButton, "modal:", !!achievementsModal, "closeButton:", !!closeAchievementsButton);
+}
 
 if (closeHowToPlayModalButton && howToPlayModal) {
     closeHowToPlayModalButton.addEventListener('click', () => {
@@ -1460,6 +1763,31 @@ if (closeHowToPlayModalButton && howToPlayModal) {
             howToPlayModal.style.display = 'none';
         }
     });
+}
+        const achievementsButton = document.getElementById('achievements-button');
+const achievementsModal = document.getElementById('achievements-modal');
+const closeAchievementsButton = document.getElementById('close-achievements-button');
+
+if (achievementsButton && achievementsModal && closeAchievementsButton) {
+    achievementsButton.addEventListener('click', () => {
+        showAchievementsModal();
+    });
+    achievementsButton.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        showAchievementsModal();
+    });
+    closeAchievementsButton.addEventListener('click', closeAchievementsModal);
+    closeAchievementsButton.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        closeAchievementsModal();
+    });
+    achievementsModal.addEventListener('click', (e) => {
+        if (e.target === achievementsModal) {
+            closeAchievementsModal();
+        }
+    });
+} else {
+    console.warn("Achievements elements not found: button:", !!achievementsButton, "modal:", !!achievementsModal, "closeButton:", !!closeAchievementsButton);
 }
                 if (fullscreenButton) {
             fullscreenButton.addEventListener('click', () => {
@@ -1529,20 +1857,23 @@ if (closeHowToPlayModalButton && howToPlayModal) {
 
         // --- Initial Setup ---
         window.addEventListener('resize', resizeCanvas);
-       window.addEventListener('load', () => {
+      window.addEventListener('load', () => {
     loadRemoteLeaderboard();
     resizeCanvas();
 
-    // Initialize originalModalParent here
-    if (howToPlayModal && howToPlayModal.parentNode) { // Check parentNode exists
-        originalModalParent = howToPlayModal.parentNode;
-        console.log("MODAL_DEBUG: Initial originalModalParent on load:", originalModalParent.id || originalModalParent.tagName);
-    } else if (howToPlayModal) { // Modal exists but no parent? Should be body.
+    if (!howToPlayModal || !achievementsModal) {
+        console.error("MODAL_DEBUG: CRITICAL - Modal element(s) not found on page load!");
         originalModalParent = document.body;
-         console.warn("MODAL_DEBUG: howToPlayModal had no parent on load. Defaulting originalModalParent to body.");
     } else {
-        console.error("MODAL_DEBUG: CRITICAL - howToPlayModal element not found on page load!");
-        originalModalParent = document.body; // Fallback, but indicates an HTML issue
+        if (howToPlayModal.parentNode && howToPlayModal.parentNode !== gameContainer) {
+            originalModalParent = howToPlayModal.parentNode;
+        } else {
+            originalModalParent = document.body;
+        }
+        if (achievementsModal.parentNode !== originalModalParent) {
+            console.log("MODAL_DEBUG: Moving achievementsModal to originalModalParent on load:", originalModalParent.id || originalModalParent.tagName);
+            originalModalParent.appendChild(achievementsModal);
+        }
     }
 
     const savedSoundPreference = localStorage.getItem('bruinCatchSoundEnabled');
