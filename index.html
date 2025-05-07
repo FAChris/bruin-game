@@ -181,6 +181,25 @@
 #fullscreen-button:hover {
     background-color: #5a6268;
 }
+
+        #sound-toggle-button {
+    font-family: 'Press Start 2P', cursive; /* Match style */
+    font-size: 1.2em;  /* Adjust size as needed */
+    padding: 8px 10px; /* Adjust padding */
+    background-color: #6c757d; /* Greyish color, similar to fullscreen */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    line-height: 1; /* Ensure icon centers vertically */
+    min-width: 40px; /* Ensure it has some width */
+    text-align: center;
+}
+
+#sound-toggle-button:hover {
+    background-color: #5a6268;
+}
         /* In-Game UI */
         .ui-overlay { position: absolute; top: 10px; left: 15px; right: 15px; display: flex; justify-content: space-between; align-items: flex-start; color: #ffffff; font-size: 1em; z-index: 10; pointer-events: none; visibility: hidden; }
         .ui-left, .ui-center, .ui-right { display: flex; flex-direction: column; gap: 5px; }
@@ -211,9 +230,10 @@
             <p>Move 🐻 (Arrows/Drag) to catch falling items.<br>Avoid items with red sparkles.<br>Reach the highest level!</p>
             <p class="fullscreen-hint">(Press 'F' for Fullscreen)</p>
             <input type="text" id="player-name-input" placeholder="Bruin" maxlength="15">
-            <div class="button-container">
-                <button id="start-game-button">Start Game</button>
-                <button id="fullscreen-button" title="Toggle Fullscreen">&#x26F6;</button> </div>
+<div class="button-container">
+    <button id="start-game-button">Start Game</button>
+    <button id="fullscreen-button" title="Toggle Fullscreen">&#x26F6;</button>
+    <button id="sound-toggle-button" title="Toggle Sound">🔊</button> </div>
             <div id="leaderboard-display">
                  <h3>Leaderboard</h3>
                  <ol id="leaderboard-list"><li>Loading...</li></ol>
@@ -263,6 +283,8 @@
         const bonusDisplayElement = document.getElementById('bonus-display');
         const itemNotificationElement = document.getElementById('item-notification');
         const fullscreenButton = document.getElementById('fullscreen-button'); // Get the new button
+        const soundToggleButton = document.getElementById('sound-toggle-button');
+let soundGloballyEnabled = true; // Default to on
 
         // --- Game Variables ---
         let player; let playerName = "Bruin";
@@ -427,8 +449,45 @@ const NETLIFY_GET_SCORES_URL = '/.netlify/functions/get-scores';
                 bonusSynth = new Tone.Synth({ oscillator: { type: 'pulse', width: 0.4 }, envelope: { attack: 0.1, decay: 0.4, sustain: 0.2, release: 0.5 } }).toDestination();
                 powerupSynth = new Tone.Synth({ oscillator: { type: 'sine' }, volume: -6, envelope: { attack: 0.02, decay: 0.1, sustain: 0.2, release: 0.2 } }).toDestination();
                 soundsEnabled = true; console.log("Audio Initialized (Context running)"); } }
-        function playSound(type, note = 'C4', duration = '8n') { if (!soundsEnabled) return; try { const now = Tone.now(); if (type === 'good' && collectSynth) collectSynth.triggerAttackRelease('C5', '16n', now); else if (type === 'golden' && collectSynth) collectSynth.triggerAttackRelease('E5', '16n', now + 0.01); else if (type === 'superRare' && collectSynth) collectSynth.triggerAttackRelease('G5', '8n', now + 0.02); else if (type === 'bad' && hurtSynth) hurtSynth.triggerAttackRelease('C3', '8n', now); else if (type === 'miss' && hurtSynth) hurtSynth.triggerAttackRelease('A2', '16n', now); else if (type === 'life' && powerupSynth) powerupSynth.triggerAttackRelease('A4', '8n', now); else if (type === 'grow' && powerupSynth) powerupSynth.triggerAttackRelease('E4', '8n', now); else if (type === 'shrink' && powerupSynth) powerupSynth.triggerAttackRelease('C4', '8n', now); else if (type === 'levelUp' && levelUpSynth) levelUpSynth.triggerAttackRelease('G4', '4n', now); else if (type === 'bonusStart' && bonusSynth) bonusSynth.triggerAttackRelease('C5', '2n', now); else if (type === 'gameOver' && hurtSynth) hurtSynth.triggerAttackRelease('F2', '1n', now); } catch (e) { console.error("Sound playback error:", e); } }
+                function playSound(type, note = 'C4', duration = '8n') { if (!soundsEnabled || !soundGloballyEnabled || typeof Tone === 'undefined') return; // ADD soundGloballyEnabled check // ... rest of playSound function try { const now = Tone.now(); if (type === 'good' && collectSynth) collectSynth.triggerAttackRelease('C5', '16n', now); else if (type === 'golden' && collectSynth) collectSynth.triggerAttackRelease('E5', '16n', now + 0.01); // ... rest of the conditions } catch (e) { console.error("Sound playback error:", e); } }
+                function initAudioInternal() {
+    if (typeof Tone === 'undefined') return;
+    if (collectSynth) return; // Already initialized
 
+    jumpSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 } }).toDestination();
+    collectSynth = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.2 } }).toDestination();
+    hurtSynth = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.1 } }).toDestination();
+    levelUpSynth = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.05, decay: 0.3, sustain: 0.1, release: 0.3 } }).toDestination();
+    bonusSynth = new Tone.Synth({ oscillator: { type: 'pulse', width: 0.4 }, envelope: { attack: 0.1, decay: 0.4, sustain: 0.2, release: 0.5 } }).toDestination();
+    powerupSynth = new Tone.Synth({ oscillator: { type: 'sine' }, volume: -6, envelope: { attack: 0.02, decay: 0.1, sustain: 0.2, release: 0.2 } }).toDestination();
+    soundsEnabled = true; // This flag means synths are ready
+    console.log("Audio Synths Initialized");
+}
+
+
+// --- Modify initAudio() slightly ---
+function initAudio() {
+    if (typeof Tone === 'undefined') return; // Tone.js not loaded
+
+    if (soundGloballyEnabled) { // Only attempt to start/init if globally enabled
+        if (Tone.context.state !== 'running') {
+            Tone.start().then(() => {
+                if (!soundGloballyEnabled) return; // Check again after promise
+                console.log("Audio Context Started on Game Init");
+                initAudioInternal();
+            }).catch(e => {
+                console.error("Audio init failed:", e);
+                soundsEnabled = false; // Ensure this is false on failure
+                // Optionally update UI to reflect audio failure
+            });
+        } else if (!collectSynth) { // Context running, but synths not initialized
+            initAudioInternal();
+        }
+    } else {
+        console.log("Audio globally disabled, not initializing context or synths.");
+        soundsEnabled = false; // Ensure game doesn't think sounds are ready
+    }
+}
         // --- Leaderboard Handling ---
         function loadLocalLeaderboard() { // Fallback loader
              try { const storedData = localStorage.getItem(LEADERBOARD_KEY); leaderboard = storedData ? JSON.parse(storedData) : []; if (!Array.isArray(leaderboard)) leaderboard = []; leaderboard.sort((a, b) => b.score - a.score || b.level - a.level); } catch (e) { console.error("LS Error (Load Leaderboard):", e); leaderboard = []; } finally { /* Display handled by caller or loadRemoteLeaderboard */ }
@@ -602,6 +661,27 @@ const NETLIFY_GET_SCORES_URL = '/.netlify/functions/get-scores';
                  if (this.type === 'bad' && Math.random() < BAD_ITEM_SPARKLE_CHANCE) { createParticle(this.x + this.size / 2, this.y + this.size / 2, BAD_SPARKLE_COUNT, badItemSparkleColor, BAD_SPARKLE_SPEED, 'radiate'); } else if (this.isGolden) { ctx.shadowColor = 'rgba(255, 223, 0, 0.8)'; ctx.shadowBlur = GOLDEN_ITEM_SHADOW_BLUR; } else if (this.isSuperRare) { ctx.shadowColor = 'rgba(200, 200, 255, 0.9)'; ctx.shadowBlur = SUPER_RARE_ITEM_SHADOW_BLUR; if (Math.random() < SUPER_RARE_SPARKLE_CHANCE) { createParticle(this.x + this.size / 2, this.y + this.size / 2, SUPER_RARE_SPARKLE_COUNT, superRareParticleColor, SUPER_RARE_SPARKLE_SPEED, 'radiate'); } } else if (this.type === 'life' || this.type === 'grow' || this.type === 'shrink') { // Group power-ups visually
                      if(this.type === 'life') ctx.shadowColor = 'rgba(0, 191, 255, 0.7)'; else if (this.type === 'grow') ctx.shadowColor = 'rgba(50, 205, 50, 0.7)'; else ctx.shadowColor = 'rgba(138, 43, 226, 0.7)'; ctx.shadowBlur = POWERUP_ITEM_SHADOW_BLUR; } ctx.fillText(this.emoji, this.x + this.size / 2, this.y + this.size / 2); ctx.restore(); } }; }
 
+    function updateSoundButtonIcon() {
+    if (soundToggleButton) {
+        soundToggleButton.innerHTML = soundGloballyEnabled ? '🔊' : '🔇';
+    }
+}
+    function toggleGlobalSound() {
+    soundGloballyEnabled = !soundGloballyEnabled;
+    localStorage.setItem('bruinCatchSoundEnabled', soundGloballyEnabled);
+    updateSoundButtonIcon();
+
+    if (soundGloballyEnabled && typeof Tone !== 'undefined' && Tone.context.state !== 'running') {
+        Tone.start().then(() => {
+            console.log("Audio context started by toggle.");
+            // Re-initialize synths if they weren't created because sound was off initially
+            if (!collectSynth) { // Check if synths need initializing
+                 initAudioInternal();
+            }
+        }).catch(e => console.error("Audio context start failed on toggle:", e));
+    }
+    // If soundGloballyEnabled is false, sounds will simply not play due to the check in playSound()
+}
         // --- Game Logic ---
         function checkLevelUp() { if (level - 1 < levelThresholds.length && score >= levelThresholds[level - 1]) { level++; baseGameSpeed += levelSpeedIncrease; // --- MODIFIED: Use constant for minimum interval ---
                  baseItemSpawnInterval = Math.max(MIN_ITEM_SPAWN_INTERVAL, baseItemSpawnInterval - levelIntervalDecrease); levelElement.textContent = `Level: ${level}`; console.log(`Level Up! Level: ${level}, Speed: ${baseGameSpeed.toFixed(2)}, Interval: ${baseItemSpawnInterval}`); levelUpMessageElement.textContent = `Level ${level}!`; levelUpMessageElement.style.display = 'block'; levelUpMessageElement.style.animation = 'none'; levelUpMessageElement.offsetHeight; // Trigger reflow to restart animation
@@ -697,6 +777,13 @@ const NETLIFY_GET_SCORES_URL = '/.netlify/functions/get-scores';
         } else {
             console.warn('Fullscreen button not found');
         }
+    if (soundToggleButton) {
+    soundToggleButton.addEventListener('click', toggleGlobalSound);
+    soundToggleButton.addEventListener('touchend', (e) => { // For mobile
+        e.preventDefault();
+        toggleGlobalSound();
+    });
+}
          window.addEventListener('keydown', (e) => { // Fullscreen Toggle
              if (e.key.toLowerCase() === 'f') { try { gameContainer.focus(); // Attempt to focus the container first
                  } catch(focusErr) { console.warn("Could not focus game container:", focusErr); } toggleFullScreen(); // Then attempt fullscreen
@@ -749,6 +836,11 @@ const NETLIFY_GET_SCORES_URL = '/.netlify/functions/get-scores';
         window.addEventListener('load', () => {
             loadRemoteLeaderboard(); // Load leaderboard (tries server, falls back to local)
             resizeCanvas();          // Size canvas correctly
+            const savedSoundPreference = localStorage.getItem('bruinCatchSoundEnabled');
+if (savedSoundPreference !== null) {
+    soundGloballyEnabled = savedSoundPreference === 'true';
+}
+updateSoundButtonIcon();
             showNameInputScreen();   // Show the initial screen
         });
 
