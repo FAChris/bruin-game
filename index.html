@@ -607,10 +607,23 @@ let soundGloballyEnabled = true; // Default to on, will be updated from localSto
         }
     }
 }
+let lastHurtSynthTime = 0;
 function playSound(type, note = 'C4', duration = '8n') {
     if (!soundsEnabled || !soundGloballyEnabled || typeof Tone === 'undefined') return;
+    if (Tone.context.state !== 'running') {
+        console.warn("Audio context not running, attempting to start");
+        Tone.start().catch(e => console.error("Audio context start failed:", e));
+        return;
+    }
     try {
         const now = Tone.now();
+        if (type === 'bad' || type === 'miss' || type === 'gameOver') {
+            if (now < lastHurtSynthTime + 0.1) {
+                console.log("Skipping hurtSynth call due to timing conflict");
+                return;
+            }
+            lastHurtSynthTime = now;
+        }
         if (type === 'good' && collectSynth) collectSynth.triggerAttackRelease('C5', '16n', now);
         else if (type === 'golden' && collectSynth) collectSynth.triggerAttackRelease('E5', '16n', now + 0.01);
         else if (type === 'superRare' && collectSynth) collectSynth.triggerAttackRelease('G5', '8n', now + 0.02);
@@ -619,9 +632,9 @@ function playSound(type, note = 'C4', duration = '8n') {
         else if (type === 'life' && powerupSynth) powerupSynth.triggerAttackRelease('A4', '8n', now);
         else if (type === 'grow' && powerupSynth) powerupSynth.triggerAttackRelease('E4', '8n', now);
         else if (type === 'shrink' && powerupSynth) powerupSynth.triggerAttackRelease('C4', '8n', now);
-        else if (type === 'levelUp' && levelUpSynth) levelUpSynth.triggerAttackRelease('G4', '4n', now);
         else if (type === 'slowmo' && powerupSynth) powerupSynth.triggerAttackRelease('G4', '8n', now);
         else if (type === 'magnet' && powerupSynth) powerupSynth.triggerAttackRelease('A4', '8n', now);
+        else if (type === 'levelUp' && levelUpSynth) levelUpSynth.triggerAttackRelease('G4', '4n', now);
         else if (type === 'bonusStart' && bonusSynth) bonusSynth.triggerAttackRelease('C5', '2n', now);
         else if (type === 'gameOver' && hurtSynth) hurtSynth.triggerAttackRelease('F2', '1n', now);
     } catch (e) {
@@ -1016,96 +1029,144 @@ function toggleGlobalSound() {
                  baseItemSpawnInterval = Math.max(MIN_ITEM_SPAWN_INTERVAL, baseItemSpawnInterval - levelIntervalDecrease); levelElement.textContent = `Level: ${level}`; console.log(`Level Up! Level: ${level}, Speed: ${baseGameSpeed.toFixed(2)}, Interval: ${baseItemSpawnInterval}`); levelUpMessageElement.textContent = `Level ${level}!`; levelUpMessageElement.style.display = 'block'; levelUpMessageElement.style.animation = 'none'; levelUpMessageElement.offsetHeight; // Trigger reflow to restart animation
                  levelUpMessageElement.style.animation = ''; playSound('levelUp'); // Apply new settings immediately
                  gameSpeed = baseGameSpeed; itemSpawnInterval = baseItemSpawnInterval; } }
-        function handleItems() { itemTimer++; // --- MODIFIED: Use constant for bonus chance & min level ---
-             if (!isBonusRoundActive && Math.random() < BONUS_ROUND_TRIGGER_CHANCE && level >= MIN_LEVEL_FOR_BONUS) { startBonusRound(); } if (itemTimer >= itemSpawnInterval) { items.push(createItem(isBonusRoundActive)); itemTimer = 0; } for (let i = items.length - 1; i >= 0; i--) { const item = items[i]; item.update(); // item.draw(); // Drawing is handled in drawGame now
-             // Collision Check
-             if ( player && item.x < player.x + player.currentWidth && item.x + item.size > player.x && item.y + item.size > player.y && // Basic overlap X and bottom edge below player top
-                 item.y < player.y + player.currentHeight // Item top edge above player bottom
-                ) { let particleX = item.x + item.size / 2; let particleY = item.y + item.size / 2; let scoreToAdd = 0; let soundType = 'good'; let notificationText = null; // --- MODIFIED: Use constants for particle effects ---
-switch(item.type) {
-    case 'superRare':
-        scoreToAdd = superRareItemValue;
-        createParticle(particleX, particleY, SUPER_RARE_PARTICLE_COUNT, superRareParticleColor, SUPER_RARE_PARTICLE_SPEED, 'burst');
-        soundType = 'superRare';
-        notificationText = "DIAMOND!";
-        break;
-    case 'golden':
-        scoreToAdd = goldenItemValue;
-        createParticle(particleX, particleY, GOLDEN_PARTICLE_COUNT, goldenParticleColor, GOLDEN_PARTICLE_SPEED, 'burst');
-        soundType = 'golden';
-        notificationText = "Golden Star!";
-        break;
-    case 'good':
-        scoreToAdd = itemValue;
-        createParticle(particleX, particleY, GOOD_PARTICLE_COUNT, goodParticleColor, GOOD_PARTICLE_SPEED, 'upward');
-        soundType = 'good';
-        break;
-    case 'life':
-        lives++;
-        createParticle(particleX, particleY, LIFE_PARTICLE_COUNT, lifeParticleColor, LIFE_PARTICLE_SPEED, 'upward');
-        soundType = 'life';
-        notificationText = "+1 Life!";
-        break;
-    case 'grow':
-        if (!isPlayerSmall) player.setSize('big');
-        createParticle(particleX, particleY, GROW_PARTICLE_COUNT, growParticleColor, GROW_PARTICLE_SPEED, 'burst');
-        soundType = 'grow';
-        notificationText = "Grew Big!";
-        break;
-    case 'shrink':
-        if (!isPlayerBig) player.setSize('small');
-        createParticle(particleX, particleY, SHRINK_PARTICLE_COUNT, shrinkParticleColor, SHRINK_PARTICLE_SPEED, 'burst');
-        soundType = 'shrink';
-        notificationText = "Shrunk Small!";
-        break;
-    case 'slowmo':
-        isSlowMo = true;
-        slowmoTimer = slowmoDuration;
-        items.forEach(item => item.speed *= slowmoSpeedMultiplier); // Slow existing items
-        createParticle(particleX, particleY, SLOWMO_PARTICLE_COUNT, slowmoParticleColor, SLOWMO_PARTICLE_SPEED, 'burst');
-        soundType = 'slowmo';
-        notificationText = "Slow-Mo!";
-        break;
-    case 'magnet':
-        isMagnet = true;
-        magnetTimer = magnetDuration;
-        createParticle(particleX, particleY, MAGNET_PARTICLE_COUNT, magnetParticleColor, MAGNET_PARTICLE_SPEED, 'burst');
-        soundType = 'magnet';
-        notificationText = "Magnet Activated!";
-        break;
-    case 'bad':
-        lives--;
-        score += penaltyValue;
-        createParticle(particleX, particleY, BAD_HIT_PARTICLE_COUNT, badParticleColor, BAD_HIT_PARTICLE_SPEED, 'burst');
-        soundType = 'bad';
-        comboCount = 0;
-        comboMultiplier = 1;
-        break;
+        function handleItems() {
+    itemTimer++;
+    if (!isBonusRoundActive && Math.random() < BONUS_ROUND_TRIGGER_CHANCE && level >= MIN_LEVEL_FOR_BONUS) {
+        startBonusRound();
+    }
+    if (itemTimer >= itemSpawnInterval) {
+        items.push(createItem(isBonusRoundActive));
+        itemTimer = 0;
+    }
+    let soundPlayedThisFrame = false; // Track if a sound was played
+    for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        item.update();
+        if (player && item.x < player.x + player.currentWidth && item.x + item.size > player.x && item.y + item.size > player.y && item.y < player.y + player.currentHeight) {
+            let particleX = item.x + item.size / 2;
+            let particleY = item.y + item.size / 2;
+            let scoreToAdd = 0;
+            let soundType = 'good';
+            let notificationText = null;
+            switch(item.type) {
+                case 'superRare':
+                    scoreToAdd = superRareItemValue;
+                    createParticle(particleX, particleY, SUPER_RARE_PARTICLE_COUNT, superRareParticleColor, SUPER_RARE_PARTICLE_SPEED, 'burst');
+                    soundType = 'superRare';
+                    notificationText = "DIAMOND!";
+                    break;
+                case 'golden':
+                    scoreToAdd = goldenItemValue;
+                    createParticle(particleX, particleY, GOLDEN_PARTICLE_COUNT, goldenParticleColor, GOLDEN_PARTICLE_SPEED, 'burst');
+                    soundType = 'golden';
+                    notificationText = "Golden Star!";
+                    break;
+                case 'good':
+                    scoreToAdd = itemValue;
+                    createParticle(particleX, particleY, GOOD_PARTICLE_COUNT, goodParticleColor, GOOD_PARTICLE_SPEED, 'upward');
+                    soundType = 'good';
+                    break;
+                case 'life':
+                    lives++;
+                    createParticle(particleX, particleY, LIFE_PARTICLE_COUNT, lifeParticleColor, LIFE_PARTICLE_SPEED, 'upward');
+                    soundType = 'life';
+                    notificationText = "+1 Life!";
+                    break;
+                case 'grow':
+                    if (!isPlayerSmall) player.setSize('big');
+                    createParticle(particleX, particleY, GROW_PARTICLE_COUNT, growParticleColor, GROW_PARTICLE_SPEED, 'burst');
+                    soundType = 'grow';
+                    notificationText = "Grew Big!";
+                    break;
+                case 'shrink':
+                    if (!isPlayerBig) player.setSize('small');
+                    createParticle(particleX, particleY, SHRINK_PARTICLE_COUNT, shrinkParticleColor, SHRINK_PARTICLE_SPEED, 'burst');
+                    soundType = 'shrink';
+                    notificationText = "Shrunk Small!";
+                    break;
+                case 'slowmo':
+                    isSlowMo = true;
+                    slowmoTimer = slowmoDuration;
+                    items.forEach(item => item.speed *= slowmoSpeedMultiplier);
+                    createParticle(particleX, particleY, SLOWMO_PARTICLE_COUNT, slowmoParticleColor, SLOWMO_PARTICLE_SPEED, 'burst');
+                    soundType = 'slowmo';
+                    notificationText = "Slow-Mo!";
+                    break;
+                case 'magnet':
+                    isMagnet = true;
+                    magnetTimer = magnetDuration;
+                    createParticle(particleX, particleY, MAGNET_PARTICLE_COUNT, magnetParticleColor, MAGNET_PARTICLE_SPEED, 'burst');
+                    soundType = 'magnet';
+                    notificationText = "Magnet Activated!";
+                    break;
+                case 'bad':
+                    lives--;
+                    score += penaltyValue;
+                    createParticle(particleX, particleY, BAD_HIT_PARTICLE_COUNT, badParticleColor, BAD_HIT_PARTICLE_SPEED, 'burst');
+                    soundType = 'bad';
+                    comboCount = 0;
+                    comboMultiplier = 1;
+                    break;
+            }
+            if (scoreToAdd > 0) {
+                scoreToAdd *= comboMultiplier;
+                score += scoreToAdd;
+                comboCount++;
+                if (comboCount >= comboThreshold) {
+                    comboMultiplier = Math.min(maxComboMultiplier, Math.floor(comboCount / comboThreshold) + 1);
+                }
+            } else if (item.type !== 'bad') {
+                comboCount = 0;
+                comboMultiplier = 1;
+            }
+            if (!soundPlayedThisFrame) {
+                playSound(soundType);
+                soundPlayedThisFrame = true;
+            }
+            if (notificationText) showItemNotification(notificationText);
+            score = Math.max(0, score);
+            scoreElement.textContent = `Score: ${score}`;
+            livesElement.textContent = `Lives: ${lives}`;
+            comboDisplayElement.textContent = comboMultiplier > 1 ? `x${comboMultiplier} Combo!` : '';
+            comboDisplayElement.style.display = comboMultiplier > 1 ? 'block' : 'none';
+            checkLevelUp();
+            items.splice(i, 1);
+            if (lives <= 0) {
+                gameOver();
+                return;
+            }
+        } else if (item.y > canvas.height) {
+            if (item.isGood && !item.isGolden && !item.isSuperRare && item.type !== 'life' && item.type !== 'grow' && item.type !== 'shrink' && item.type !== 'slowmo' && item.type !== 'magnet') {
+                lives -= missPenalty;
+                livesElement.textContent = `Lives: ${lives}`;
+                if (!soundPlayedThisFrame) {
+                    playSound('miss');
+                    soundPlayedThisFrame = true;
+                }
+            }
+            comboCount = 0;
+            comboMultiplier = 1;
+            comboDisplayElement.style.display = 'none';
+            items.splice(i, 1);
+            if (lives <= 0) {
+                gameOver();
+                return;
+            }
+        }
+    }
 }
-                 if (scoreToAdd > 0) { scoreToAdd *= comboMultiplier; score += scoreToAdd; comboCount++; if (comboCount >= comboThreshold) { comboMultiplier = Math.min(maxComboMultiplier, Math.floor(comboCount / comboThreshold) + 1); } } else if (item.type !== 'bad') { // Reset combo if non-scoring item (e.g., powerup) is caught, but not for bad items (already handled)
-                     comboCount = 0; comboMultiplier = 1; } // Post-catch updates
-                 playSound(soundType); if (notificationText) showItemNotification(notificationText); score = Math.max(0, score); // Prevent negative score
-                 scoreElement.textContent = `Score: ${score}`; livesElement.textContent = `Lives: ${lives}`; comboDisplayElement.textContent = comboMultiplier > 1 ? `x${comboMultiplier} Combo!` : ''; comboDisplayElement.style.display = comboMultiplier > 1 ? 'block' : 'none'; checkLevelUp(); // Check for level up AFTER score update
-                 items.splice(i, 1); // Remove caught item
-                 if (lives <= 0) { gameOver(); return; // Exit loop immediately if game over
-                 } } else if (item.y > canvas.height) { // Item missed (went below screen)
-                 if (item.isGood && !item.isGolden && !item.isSuperRare && item.type !== 'life' && item.type !== 'grow' && item.type !== 'shrink') { // Only penalize for missing standard good items
-                     lives -= missPenalty; livesElement.textContent = `Lives: ${lives}`; playSound('miss'); } comboCount = 0; comboMultiplier = 1; // Reset combo on any miss
-                 comboDisplayElement.style.display = 'none'; items.splice(i, 1); // Remove missed item
-                 if (lives <= 0) { gameOver(); return; // Exit loop immediately if game over
-                 } } } }
         function startBonusRound() { if (isBonusRoundActive) return; isBonusRoundActive = true; bonusRoundTimer = bonusRoundDuration; bonusDisplayElement.style.display = 'block'; console.log("BONUS ROUND STARTED!"); playSound('bonusStart'); items = []; // Clear existing items
              itemSpawnInterval = Math.max(MIN_ITEM_SPAWN_INTERVAL, baseItemSpawnInterval / 2); // Faster spawning
          }
         function updateBonusRound() { if (!isBonusRoundActive) return; bonusRoundTimer--; if (bonusRoundTimer <= 0) { isBonusRoundActive = false; bonusDisplayElement.style.display = 'none'; console.log("BONUS ROUND ENDED!"); itemSpawnInterval = baseItemSpawnInterval; // Restore normal spawn interval
              gameSpeed = baseGameSpeed; // Restore normal speed (if it was changed)
              } }
-        function updateSlowMo() {
+       function updateSlowMo() {
     if (!isSlowMo) return;
     slowmoTimer--;
     if (slowmoTimer <= 0) {
         isSlowMo = false;
-        items.forEach(item => item.speed /= slowmoSpeedMultiplier); // Restore speeds
+        items.forEach(item => item.speed /= slowmoSpeedMultiplier);
         console.log("Slow-Mo Ended");
         showItemNotification("Slow-Mo Ended!");
     }
@@ -1140,7 +1201,6 @@ function gameLoop() {
         animationFrameId = null;
         return;
     }
-    // Updates
     if (player) player.update();
     handleItems();
     if (isGameOver) {
@@ -1152,16 +1212,12 @@ function gameLoop() {
     updateSlowMo();
     updateMagnet();
     updateBonusRound();
-    // Passive Score Calculation
     passiveScoreTimer++;
     if (passiveScoreTimer >= passiveScoreInterval) {
         passiveScoreTimer = 0;
         let passiveScoreToAdd = 0;
-        if (isPlayerSmall) {
-            passiveScoreToAdd = smallPassiveScore;
-        } else if (isPlayerBig) {
-            passiveScoreToAdd = bigPassiveScore;
-        }
+        if (isPlayerSmall) passiveScoreToAdd = smallPassiveScore;
+        else if (isPlayerBig) passiveScoreToAdd = bigPassiveScore;
         if (passiveScoreToAdd > 0) {
             score += passiveScoreToAdd;
             score = Math.max(0, score);
@@ -1169,15 +1225,25 @@ function gameLoop() {
             checkLevelUp();
         }
     }
-    // Drawing
     drawGame();
-    // Next Frame
     animationFrameId = requestAnimationFrame(gameLoop);
 }
-        function gameOver() { if (isGameOver) return; // Prevent multiple calls
-             isGameOver = true; console.log("Game Over Triggered"); cancelAnimationFrame(animationFrameId); animationFrameId = null; saveToLeaderboard(); // Save score (tries server first, then local)
-             const safePlayerName = (playerName || "Bruin").replace(/</g, "&lt;").replace(/>/g, "&gt;"); // Sanitize name for display
-             messageElement.innerHTML = `Game Over!<br>Player: ${safePlayerName}<br>Level: ${level} | Score: ${score}<br>Tap or Click to Play Again`; messageElement.style.display = 'block'; gameContainer.style.cursor = 'pointer'; playSound('gameOver'); }
+      function gameOver() {
+    if (isGameOver) {
+        console.log("gameOver called but already over, skipping");
+        return;
+    }
+    isGameOver = true;
+    console.log("Game Over Triggered");
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+    saveToLeaderboard();
+    const safePlayerName = (playerName || "Bruin").replace(/</g, "<").replace(/>/g, ">");
+    messageElement.innerHTML = `Game Over!<br>Player: ${safePlayerName}<br>Level: ${level} | Score: ${score}<br>Tap or Click to Play Again`;
+    messageElement.style.display = 'block';
+    gameContainer.style.cursor = 'pointer';
+    playSound('gameOver');
+}
 
         function showNameInputScreen() { isGameOver = true; cancelAnimationFrame(animationFrameId); animationFrameId = null; nameInputOverlay.style.display = 'flex'; canvas.style.visibility = 'hidden'; uiOverlay.style.visibility = 'hidden'; messageElement.style.display = 'none'; levelUpMessageElement.style.display = 'none'; bonusDisplayElement.style.display = 'none'; // Hide bonus display too
              comboDisplayElement.style.display = 'none'; // Hide combo display
