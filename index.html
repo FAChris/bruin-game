@@ -303,6 +303,38 @@ body {
     max-height: 80vh;
     overflow-y: auto;
 }
+        /* Progress Bar Styles */
+.progress-bar {
+    width: 100%;
+    height: 10px;
+    background-color: #ddd; /* Light grey background for the bar */
+    border-radius: 5px;
+    margin-top: 8px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #2774AE; /* Match the game's blue theme */
+    border-radius: 5px;
+    transition: width 0.3s ease; /* Smooth transition for progress updates */
+}
+
+.achievement-item.locked .progress-fill {
+    background-color: #999; /* Greyed out for locked achievements */
+}
+
+.progress-text {
+    font-size: 0.7em;
+    color: #333;
+    text-align: center;
+    margin-top: 4px;
+}
+
+.achievement-item.locked .progress-text {
+    color: #777; /* Lighter color for locked achievements */
+}
 
 #achievements-modal h2 {
     font-size: 1.3em;
@@ -759,16 +791,24 @@ body {
         const howToPlayButton = document.getElementById('how-to-play-button');
 const howToPlayModal = document.getElementById('how-to-play-modal');
 const closeHowToPlayModalButton = document.getElementById('close-how-to-play-modal');
-        function showAchievementsModal() {
+function showAchievementsModal() {
     const modal = document.getElementById('achievements-modal');
     const list = document.getElementById('achievements-list');
     if (modal && list) {
-        list.innerHTML = achievements.map(achievement => `
-            <div class="achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}">
-                <strong>${achievement.name}</strong>: ${achievement.description}
-                ${achievement.unlocked ? '' : '<span>(Locked)</span>'}
-            </div>
-        `).join('');
+        list.innerHTML = achievements.map(achievement => {
+            const progress = achievement.progress(); // Get progress as a fraction (0 to 1)
+            const progressPercentage = (progress * 100).toFixed(0); // Convert to percentage
+            return `
+                <div class="achievement-item ${achievement.unlocked ? 'unlocked' : 'locked'}">
+                    <strong>${achievement.name}</strong>: ${achievement.description}
+                    ${achievement.unlocked ? '' : '<span>(Locked)</span>'}
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progressPercentage}%"></div>
+                    </div>
+                    <div class="progress-text">${progressPercentage}%</div>
+                </div>
+            `;
+        }).join('');
         modal.style.display = 'flex';
         if (document.fullscreenElement === gameContainer) {
             if (modal.parentNode !== gameContainer) {
@@ -819,6 +859,7 @@ let playerAchievements = [];
 let slowmoTimer = 0;
 let isMagnet = false;
 let magnetTimer = 0;
+        let highestCombo = 1; // Track the highest combo achieved in the session
         let passiveScoreTimer = 0;
         let notificationTimeoutId = null;
 
@@ -830,28 +871,36 @@ const achievements = [
         id: 'catch_100_items',
         name: 'Item Collector',
         description: 'Catch 100 items in total',
+        target: 100, // Numerical target for progress
         condition: () => totalItemsCaught >= 100,
+        progress: () => Math.min(totalItemsCaught / 100, 1), // Progress as a fraction (0 to 1)
         unlocked: false
     },
     {
         id: 'reach_level_10',
         name: 'Level Master',
         description: 'Reach Level 10',
+        target: 10,
         condition: () => level >= 10,
+        progress: () => Math.min(level / 10, 1),
         unlocked: false
     },
-    {
-        id: 'combo_10x',
-        name: 'Combo King',
-        description: 'Achieve a 10x Combo',
-        condition: () => comboMultiplier >= 10,
-        unlocked: false
-    },
+  {
+    id: 'combo_10x',
+    name: 'Combo King',
+    description: 'Achieve a 10x Combo',
+    target: 10,
+    condition: () => highestCombo >= 10,
+    progress: () => Math.min(highestCombo / 10, 1),
+    unlocked: false
+},
     {
         id: 'first_golden',
         name: 'Golden Touch',
         description: 'Catch your first Golden Item',
+        target: 1,
         condition: () => goldenItemsCaught >= 1,
+        progress: () => Math.min(goldenItemsCaught / 1, 1),
         unlocked: false
     }
 ];
@@ -1140,7 +1189,7 @@ function closeHowToPlayModal() {
     modalWasMovedForFullscreen = false; // Reset flag on close
 }
 
-        function startGame() {
+function startGame() {
     playerName = playerNameInput.value.trim();
     if (playerName.length > 15) {
         playerName = playerName.slice(0, 15);
@@ -1159,12 +1208,13 @@ function closeHowToPlayModal() {
     particles = [];
     comboCount = 0;
     comboMultiplier = 1;
+    highestCombo = 1; // Reset highest combo
     passiveScoreTimer = 0;
     totalItemsCaught = 0;
     goldenItemsCaught = 0;
     isPlayerBig = false;
-    isPlayerSmall = false;
     playerBigTimer = 0;
+    isPlayerSmall = false;
     playerSmallTimer = 0;
     isBonusRoundActive = false;
     bonusRoundTimer = 0;
@@ -1584,12 +1634,101 @@ switch(item.type) {
         comboMultiplier = 1;
         break;
 }
+function handleItems() {
+    itemTimer++;
+    if (!isBonusRoundActive && Math.random() < BONUS_ROUND_TRIGGER_CHANCE && level >= MIN_LEVEL_FOR_BONUS) {
+        startBonusRound();
+    }
+    if (itemTimer >= itemSpawnInterval) {
+        items.push(createItem(isBonusRoundActive));
+        itemTimer = 0;
+    }
+    let soundPlayedThisFrame = false; // Track if a sound was played
+    for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        item.update();
+        if (player && item.x < player.x + player.currentWidth && item.x + item.size > player.x && item.y + item.size > player.y && item.y < player.y + player.currentHeight) {
+            let particleX = item.x + item.size / 2;
+            let particleY = item.y + item.size / 2;
+            let scoreToAdd = 0;
+            let soundType = 'good';
+            let notificationText = null;
+            switch(item.type) {
+                case 'superRare':
+                    scoreToAdd = superRareItemValue;
+                    createParticle(particleX, particleY, SUPER_RARE_PARTICLE_COUNT, superRareParticleColor, SUPER_RARE_PARTICLE_SPEED, 'burst');
+                    soundType = 'superRare';
+                    notificationText = "DIAMOND!";
+                    totalItemsCaught++;
+                    break;
+                case 'golden':
+                    scoreToAdd = goldenItemValue;
+                    createParticle(particleX, particleY, GOLDEN_PARTICLE_COUNT, goldenParticleColor, GOLDEN_PARTICLE_SPEED, 'burst');
+                    soundType = 'golden';
+                    notificationText = "Golden Star!";
+                    totalItemsCaught++;
+                    goldenItemsCaught++;
+                    break;
+                case 'good':
+                    scoreToAdd = itemValue;
+                    createParticle(particleX, particleY, GOOD_PARTICLE_COUNT, goodParticleColor, GOOD_PARTICLE_SPEED, 'upward');
+                    soundType = 'good';
+                    totalItemsCaught++;
+                    break;
+                case 'life':
+                    lives++;
+                    createParticle(particleX, particleY, LIFE_PARTICLE_COUNT, lifeParticleColor, LIFE_PARTICLE_SPEED, 'upward');
+                    soundType = 'life';
+                    notificationText = "+1 Life!";
+                    totalItemsCaught++;
+                    break;
+                case 'grow':
+                    if (!isPlayerSmall) player.setSize('big');
+                    createParticle(particleX, particleY, GROW_PARTICLE_COUNT, growParticleColor, GROW_PARTICLE_SPEED, 'burst');
+                    soundType = 'grow';
+                    notificationText = "Grew Big!";
+                    totalItemsCaught++;
+                    break;
+                case 'shrink':
+                    if (!isPlayerBig) player.setSize('small');
+                    createParticle(particleX, particleY, SHRINK_PARTICLE_COUNT, shrinkParticleColor, SHRINK_PARTICLE_SPEED, 'burst');
+                    soundType = 'shrink';
+                    notificationText = "Shrunk Small!";
+                    totalItemsCaught++;
+                    break;
+                case 'slowmo':
+                    isSlowMo = true;
+                    slowmoTimer = slowmoDuration;
+                    items.forEach(item => item.speed *= slowmoSpeedMultiplier);
+                    createParticle(particleX, particleY, SLOWMO_PARTICLE_COUNT, slowmoParticleColor, SLOWMO_PARTICLE_SPEED, 'burst');
+                    soundType = 'slowmo';
+                    notificationText = "Slow-Mo!";
+                    totalItemsCaught++;
+                    break;
+                case 'magnet':
+                    isMagnet = true;
+                    magnetTimer = magnetDuration;
+                    createParticle(particleX, particleY, MAGNET_PARTICLE_COUNT, magnetParticleColor, MAGNET_PARTICLE_SPEED, 'burst');
+                    soundType = 'magnet';
+                    notificationText = "Magnet Activated!";
+                    totalItemsCaught++;
+                    break;
+                case 'bad':
+                    lives--;
+                    score += penaltyValue;
+                    createParticle(particleX, particleY, BAD_HIT_PARTICLE_COUNT, badParticleColor, BAD_HIT_PARTICLE_SPEED, 'burst');
+                    soundType = 'bad';
+                    comboCount = 0;
+                    comboMultiplier = 1;
+                    break;
+            }
             if (scoreToAdd > 0) {
                 scoreToAdd *= comboMultiplier;
                 score += scoreToAdd;
                 comboCount++;
                 if (comboCount >= comboThreshold) {
                     comboMultiplier = Math.min(maxComboMultiplier, Math.floor(comboCount / comboThreshold) + 1);
+                    highestCombo = Math.max(highestCombo, comboMultiplier); // Update highest combo
                 }
             } else if (item.type !== 'bad') {
                 comboCount = 0;
@@ -1688,14 +1827,27 @@ function saveAchievements() {
 }
 
 function checkAchievements() {
+    let progressChanged = false;
     achievements.forEach(achievement => {
+        const previousProgress = achievement.progress();
         if (!achievement.unlocked && achievement.condition()) {
             achievement.unlocked = true;
             showAchievementNotification(achievement.name);
             saveAchievements();
             console.log('Achievement unlocked:', achievement.name);
+            progressChanged = true;
+        } else if (!achievement.unlocked) {
+            const currentProgress = achievement.progress();
+            if (currentProgress !== previousProgress) {
+                progressChanged = true;
+            }
         }
     });
+    // If progress changed and the modal is open, refresh it
+    const modal = document.getElementById('achievements-modal');
+    if (progressChanged && modal && modal.style.display === 'flex') {
+        showAchievementsModal();
+    }
 }
 
 function showAchievementNotification(achievementName) {
