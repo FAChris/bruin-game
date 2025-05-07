@@ -66,6 +66,33 @@
     margin-bottom: 15px;
     flex-shrink: 0; /* Added to prevent shrinking */
 }
+<button id="how-to-play-button">How to Play?</button>
+
+<div id="how-to-play-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+        <h2>How to Play Bruin Catch</h2>
+        <p>🐻 <strong>Move the Bruin:</strong> Use Left/Right Arrow keys or Drag with your mouse/finger.</p>
+        <p>🌟 <strong>Catch Items:</strong></p>
+        <ul>
+            <li>🎓 📚 🏀 🏆: Good items! Score points!</li>
+            <li>🌟 (Golden): Extra points!</li>
+            <li>💎 (Diamond): Lots of points!</li>
+            <li>💙 (Life): Gain an extra life!</li>
+            <li>🍄 (Grow): Bruin gets bigger temporarily!</li>
+            <li>💧 (Shrink): Bruin gets smaller temporarily!</li>
+            <li>🧲 (Magnet - New!): Attracts good items for a bit!</li>
+            <li>⏳ (Slow-Mo - New!): Slows down items for a bit!</li>
+        </ul>
+        <p>⚠️ <strong>Avoid Bad Items:</strong></p>
+        <ul>
+            <li>🗑️ 💥 💔: These have red sparkles! Avoid them or lose a life!</li>
+        </ul>
+        <p>🔥 <strong>Combos:</strong> Catch multiple good items in a row for score multipliers!</p>
+        <p>🚀 <strong>Level Up:</strong> Score points to reach higher levels. The game gets faster!</p>
+        <p>🎉 <strong>Bonus Rounds:</strong> Extra valuable items might appear!</p>
+        <button id="close-how-to-play-modal">Close</button>
+    </div>
+</div>
 #player-name-input {
     font-family: 'Press Start 2P', cursive;
     font-size: 1em;
@@ -221,6 +248,87 @@
          @media (max-width: 600px) { .intro-text { font-size: 0.8em; } .ui-overlay { font-size: 0.9em; top: 8px; left: 12px; right: 12px; } .score, .lives, .level, .high-score-display, .high-level-display, .player-name-display, .combo-display, .bonus-display { padding: 4px 8px; } .combo-display { font-size: 1em; bottom: 8px; right: 8px;} .bonus-display { font-size: 1em; top: 45px; } .message { font-size: 1em; padding: 15px; } .level-up-message { font-size: 1.5em; } #name-input-overlay h2 { font-size: 1.1em; } #name-input-overlay p { font-size: 0.7em; } #name-input-overlay .fullscreen-hint { font-size: 0.6em; } #player-name-input { font-size: 0.9em; } #start-game-button { font-size: 0.9em; } .player-name-display { font-size: 0.7em; bottom: 8px; left: 8px; padding: 4px 6px;} #leaderboard-display { font-size: 0.65em; /* Slightly smaller font */ max-height: 120px; /* Make it shorter on medium screens */ margin-top: 10px; padding: 4px 8px; } #leaderboard-list li { padding: 2px 0; } /* ... other rules ... */ }
          @media (max-width: 450px) { .intro-text { font-size: 0.7em; } .ui-overlay { font-size: 0.75em; left: 10px; right: 10px; } .level { font-size: 0.7em; } .high-score-display, .high-level-display { font-size: 0.65em; padding: 3px 6px;} .combo-display { font-size: 0.9em; } .bonus-display { font-size: 0.9em; } .message { font-size: 0.9em; padding: 10px; } .level-up-message { font-size: 1.2em; } .player-name-display { font-size: 0.65em; } #leaderboard-display { display: none; } #item-notification { font-size: 1em; } }
         @media (max-width: 768px) { .fullscreen-hint { display: none; /* Hide 'Press F' text on smaller screens */ } #fullscreen-button { display: inline-block; /* Show fullscreen button on smaller screens */ } }
+        #how-to-play-button {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.8em;
+    padding: 8px 15px;
+    background-color: #f0ad4e; /* An orange color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 15px; /* Space it from elements above */
+    flex-shrink: 0;
+}
+
+#how-to-play-button:hover {
+    background-color: #ec971f;
+}
+
+.modal-overlay {
+    position: fixed; /* Cover the whole screen */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
+    z-index: 100; /* Make sure it's on top */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.modal-content {
+    background-color: #fff;
+    color: #333; /* Text color for modal content */
+    padding: 25px;
+    border-radius: 10px;
+    max-width: 500px; /* Max width of modal */
+    width: 90%;
+    text-align: left;
+    font-size: 0.8em;
+    line-height: 1.6;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    max-height: 80vh; /* Max height */
+    overflow-y: auto; /* Scroll if content is too tall */
+}
+
+.modal-content h2 {
+    font-size: 1.3em;
+    color: #2774AE; /* Match your theme blue */
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.modal-content ul {
+    list-style: none;
+    padding-left: 10px;
+}
+.modal-content li {
+    margin-bottom: 8px;
+}
+
+.modal-content button { /* Style for close button inside modal */
+    font-family: 'Press Start 2P', cursive;
+    font-size: 0.9em;
+    padding: 10px 20px;
+    background-color: #2774AE;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: block; /* Make it a block to center it */
+    margin: 20px auto 0 auto; /* Center it */
+}
+
+.modal-content button:hover {
+    background-color: #1E5A8C;
+}
     </style>
 </head>
 <body>
@@ -284,6 +392,9 @@
         const itemNotificationElement = document.getElementById('item-notification');
         const fullscreenButton = document.getElementById('fullscreen-button'); // Get the new button
         const soundToggleButton = document.getElementById('sound-toggle-button');
+        const howToPlayButton = document.getElementById('how-to-play-button');
+const howToPlayModal = document.getElementById('how-to-play-modal');
+const closeHowToPlayModalButton = document.getElementById('close-how-to-play-modal');
         
         // --- Game Variables ---
         let player; let playerName = "Bruin";
@@ -793,6 +904,32 @@ function toggleGlobalSound() {
 
         // --- Event Listeners ---
         // Keyboard Controls
+        if (howToPlayButton && howToPlayModal) {
+    howToPlayButton.addEventListener('click', () => {
+        howToPlayModal.style.display = 'flex';
+    });
+    howToPlayButton.addEventListener('touchend', (e) => { // For mobile
+        e.preventDefault();
+        howToPlayModal.style.display = 'flex';
+    });
+}
+
+if (closeHowToPlayModalButton && howToPlayModal) {
+    closeHowToPlayModalButton.addEventListener('click', () => {
+        howToPlayModal.style.display = 'none';
+    });
+    closeHowToPlayModalButton.addEventListener('touchend', (e) => { // For mobile
+        e.preventDefault();
+        howToPlayModal.style.display = 'none';
+    });
+}
+        if (howToPlayModal) {
+    howToPlayModal.addEventListener('click', (event) => {
+        if (event.target === howToPlayModal) { // Clicked on the overlay itself
+            howToPlayModal.style.display = 'none';
+        }
+    });
+}
                 if (fullscreenButton) {
             fullscreenButton.addEventListener('click', () => {
                 console.log('Fullscreen button clicked'); // For debugging
